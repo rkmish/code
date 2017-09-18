@@ -1,0 +1,10 @@
+# code
+to stop text after 500 char in textbox:
+
+function textLimit(field, maxlen) {
+						    if (field.value.length > maxlen) {
+						        field.value = field.value.substring(0, maxlen);
+						    }
+						}
+            
+            onkeyup="textLimit(this,500)" onpaste="textLimit(this,500)"
