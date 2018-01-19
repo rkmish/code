@@ -8,3 +8,716 @@ function textLimit(field, maxlen) {
 						}
             
             onkeyup="textLimit(this,500)" onpaste="textLimit(this,500)"
+	    
+	    
+code done by me:
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using Entities;
+using QMS.Entities;
+using System.Data;
+using System.IO;
+using ClosedXML.Excel;
+
+public partial class UI_Report_DynamicReport : System.Web.UI.Page
+{
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        ScriptManager scriptManager = ScriptManager.GetCurrent(this.Page);
+        scriptManager.RegisterPostBackControl(this.ibtnExcel);
+        if (!Page.IsPostBack)
+        {
+            BindTeam();
+            BindLocation();
+            BindProcess();
+            BindSubprocess();
+        }
+        if (ViewState["OldTeam"] != null && Convert.ToString(ViewState["OldTeam"]) != lstTeamName.SelectedValue || ViewState["OldProcess"] != null && Convert.ToString(ViewState["OldProcess"]) != lstProcessName.SelectedValue || ViewState["OldSubProcess"] != null && Convert.ToString(ViewState["OldSubProcess"]) != lstSubProcess.SelectedValue)
+        {
+            grdDynamicReport.DataSource = null;
+            grdDynamicReport.DataBind();
+            divGridDynamicReport.Visible = false;
+            //ViewState["OldLocation"] != null && Convert.ToString(ViewState["OldLocation"]) !=(lstLocation.SelectedItem.Text== null ? string.Empty : lstLocation.SelectedItem.Text)
+        }
+
+    }
+
+    private void BindTeam()
+    {
+        try
+        {
+            AuditReportBE objDynamic = new AuditReportBE();
+            lstTeamName.Items.Clear();
+            objDynamic.flag = "Team";
+            objDynamic.ClientId = Utility.GetClientId();
+            objDynamic.UserID = Utility.GetUserObj().EmployeeID;
+            // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+            DataTable dt = BusinessLayer.AuditReport.getDetails(objDynamic);
+            //var dt = objDynamic.GetDetails('Team');
+            lstTeamName.DataSource = dt;
+            lstTeamName.DataTextField = "TeamName";
+            lstTeamName.DataValueField = "TeamID";
+            lstTeamName.DataBind();
+            // lstTeamName.Items.Insert(0, new ListItem("--Select--", "-1"));
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+    private void BindLocation()
+    {
+        try
+        {
+            AuditReportBE objDynamic = new AuditReportBE();
+            lstLocation.Items.Clear();
+            objDynamic.flag = "Location";
+            objDynamic.ClientId = Utility.GetClientId();
+            objDynamic.UserID = Utility.GetUserObj().EmployeeID;
+            // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+            DataTable dt = BusinessLayer.AuditReport.getDetails(objDynamic);
+            //var dt = objDynamic.GetDetails('Team');
+            lstLocation.DataSource = dt;
+            lstLocation.DataTextField = "LocationName";
+            lstLocation.DataValueField = "LocationName";
+            lstLocation.DataBind();
+            //lstLocation.Items.Insert(0, new ListItem("--Select--", "-1"));
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+    private void BindProcess()
+    {
+        try
+        {
+            AuditReportBE objDynamic = new AuditReportBE();
+            lstProcessName.Items.Clear();
+            objDynamic.flag = "Process";
+            objDynamic.ClientId = Utility.GetClientId();
+            objDynamic.UserID = Utility.GetUserObj().EmployeeID;
+            // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+            DataTable dt = BusinessLayer.AuditReport.getDetails(objDynamic);
+            //var dt = objDynamic.GetDetails('Team');
+            lstProcessName.DataSource = dt;
+            lstProcessName.DataTextField = "ProcessName";
+            lstProcessName.DataValueField = "ProcessID";
+            lstProcessName.DataBind();
+            //lstProcessName.Items.Insert(0, new ListItem("--Select--", "-1"));
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+    private void BindSubprocess()
+    {
+        try
+        {
+            AuditReportBE objDynamic = new AuditReportBE();
+            lstSubProcess.Items.Clear();
+            objDynamic.flag = "SubProcess";
+            objDynamic.ClientId = Utility.GetClientId();
+            objDynamic.UserID = Utility.GetUserObj().EmployeeID;
+            // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+            DataTable dt = BusinessLayer.AuditReport.getDetails(objDynamic);
+            //var dt = objDynamic.GetDetails('Team');
+            lstSubProcess.DataSource = dt;
+            lstSubProcess.DataTextField = "SubProcessName";
+            lstSubProcess.DataValueField = "SubProcessID";
+            lstSubProcess.DataBind();
+            // lstSubProcess.Items.Insert(0, new ListItem("--Select--", "-1"));
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+    protected void lstTeamName_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        var TeamNameCount = (from ListItem li in lstTeamName.Items
+                             where li.Selected == true
+                             select li).Count();
+        if (TeamNameCount > 1)
+        {
+            lstProcessName.Attributes.Add("disabled", "");
+            lstLocation.Attributes.Add("disabled", "");
+            lstSubProcess.Attributes.Add("disabled", "");
+            lstProcessName.Attributes.Add("style", "background-color: LightGrey");
+            lstLocation.Attributes.Add("style", "background-color: LightGrey");
+            lstSubProcess.Attributes.Add("style", "background-color: LightGrey");
+        }
+        else
+        {
+            lstProcessName.Attributes.Remove("disabled");
+            lstLocation.Attributes.Remove("disabled");
+            lstSubProcess.Attributes.Remove("disabled");
+            lstProcessName.Attributes.Add("style", "background-color: ''");
+            lstLocation.Attributes.Add("style", "background-color: ''");
+            lstSubProcess.Attributes.Add("style", "background-color: ''");
+            AuditReportBE objDynamic = new AuditReportBE();
+            objDynamic.flag = "TeamSelected";
+            objDynamic.ClientId = Utility.GetClientId();
+            foreach (ListItem lst in lstTeamName.Items)
+
+                if (lst.Selected)
+                {
+                    objDynamic.TeamID = Convert.ToInt32(lst.Value);
+                }
+
+            // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+            DataTable dt = BusinessLayer.AuditReport.getDetails(objDynamic);
+            lstLocation.DataSource = dt;
+            lstLocation.DataTextField = "LocationName";
+            lstLocation.DataValueField = "LocationName";
+            lstLocation.DataBind();
+            // lstLocation.Items.Insert(0, new ListItem("--Select--", "-1"));
+
+        }
+    }
+
+    protected void lstLocation_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        AuditReportBE objDynamic = new AuditReportBE();
+        objDynamic.flag = "LocationSelected";
+        objDynamic.ClientId = Utility.GetClientId();
+        //if (lstLocation.SelectedIndex == 0)
+        //{
+        //    ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Select Location ')", true);
+        //    return;
+        //}
+
+        if (lstTeamName.SelectedIndex == -1)
+        {
+            ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Select Team ')", true);
+            return;
+        }
+        foreach (ListItem lst in lstTeamName.Items)
+            if (lst.Selected)
+            {
+                objDynamic.TeamID = Convert.ToInt32(lst.Value);
+            }
+        foreach (ListItem lst in lstLocation.Items)
+            if (lst.Selected)
+            {
+                objDynamic.LocationName = lst.Text;
+            }
+
+        // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+        DataTable dt = BusinessLayer.AuditReport.getDetails(objDynamic);
+        lstProcessName.DataSource = dt;
+        lstProcessName.DataTextField = "ProcessName";
+        lstProcessName.DataValueField = "ProcessID";
+        lstProcessName.DataBind();
+        // lstProcessName.Items.Insert(0, new ListItem("--Select--", "-1"));
+
+    }
+
+
+    protected void lstProcessName_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        AuditReportBE objDynamic = new AuditReportBE();
+        objDynamic.flag = "ProcessSelected";
+        objDynamic.ClientId = Utility.GetClientId();
+        if (lstTeamName.SelectedIndex == -1)
+        {
+            ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Select Team ')", true);
+            return;
+        }
+        foreach (ListItem lst in lstTeamName.Items)
+            if (lst.Selected)
+            {
+                objDynamic.TeamID = Convert.ToInt32(lst.Value);
+            }
+        if (lstLocation.SelectedIndex == -1)
+        {
+            ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Select Location ')", true);
+            return;
+        }
+        foreach (ListItem lst in lstLocation.Items)
+            if (lst.Selected)
+            {
+                objDynamic.LocationName = lst.Text;
+            }
+        foreach (ListItem lst in lstProcessName.Items)
+            if (lst.Selected)
+            {
+                objDynamic.ProcessID = Convert.ToInt32(lst.Value);
+            }
+
+        // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+        DataTable dt = BusinessLayer.AuditReport.getDetails(objDynamic);
+        lstSubProcess.DataSource = dt;
+        lstSubProcess.DataTextField = "SubProcessName";
+        lstSubProcess.DataValueField = "SubProcessID";
+        lstSubProcess.DataBind();
+        // lstSubProcess.Items.Insert(0, new ListItem("--Select--", "-1"));
+    }
+
+    protected void lstSubProcess_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        AuditReportBE objDynamic = new AuditReportBE();
+
+        //if (lstSubProcess.SelectedIndex == 0)
+        //{
+        //    ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Select lstSubProcess ')", true);
+        //    return;
+        //}
+        if (lstTeamName.SelectedIndex == -1)
+        {
+            ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Select Team ')", true);
+            return;
+        }
+        foreach (ListItem lst in lstTeamName.Items)
+            if (lst.Selected)
+            {
+                objDynamic.TeamID = Convert.ToInt32(lst.Value);
+            }
+        if (lstLocation.SelectedIndex == -1)
+        {
+            ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Select Location ')", true);
+            return;
+        }
+        foreach (ListItem lst in lstLocation.Items)
+            if (lst.Selected)
+            {
+                objDynamic.LocationName = lst.Text;
+            }
+        if (lstProcessName.SelectedIndex == -1)
+        {
+            ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Select Process ')", true);
+            return;
+        }
+        foreach (ListItem lst in lstProcessName.Items)
+            if (lst.Selected)
+            {
+                objDynamic.ProcessID = Convert.ToInt32(lst.Value);
+            }
+    }
+
+
+    protected void imgBtnAddParameter_Click(object sender, ImageClickEventArgs e)
+    {
+        ListItemCollection lstColl = new ListItemCollection();
+        foreach (ListItem item in lstParameterOption.Items)
+            lstColl.Add(item);
+
+        foreach (ListItem item in lstColl)
+            if (item.Selected)
+            {
+                lstSelectedparameterOptions.Items.Add(item);
+                lstParameterOption.Items.Remove(item);
+            }
+    }
+
+    protected void imgBtnRemoveParameter_Click(object sender, ImageClickEventArgs e)
+    {
+        ListItemCollection lstColl = new ListItemCollection();
+        foreach (ListItem item in lstSelectedparameterOptions.Items)
+            lstColl.Add(item);
+        foreach (ListItem item in lstColl)
+            if (item.Selected)
+            {
+                lstParameterOption.Items.Add(item);
+                lstSelectedparameterOptions.Items.Remove(item);
+            }
+
+    }
+
+    private bool ValidateReportPage()
+    {
+        string msg = "";
+        ////if (!ucTeamProcessDetail.IsTeamMappingSelected)
+        ////    msg = "\\nPlease select team combination";
+        var TeamNameCount = (from ListItem li in lstTeamName.Items
+                             where li.Selected == true
+                             select li).Count();
+        if (TeamNameCount > 1)
+        {
+            if (txtReportName.Text == "")
+                msg += "\\nPlease select Report Name.";
+
+            if (txtFromDate.Text == "")
+                msg += "\\nPlease select From date.";
+
+            if (txtToDate.Text == "")
+                msg += "\\nPlease select To date.";
+
+            if (lstSelectedparameterOptions.Items.Count == 0)
+                msg += "\\nPlease Select Common Parameter Name";
+
+            if ((txtFromDate.Text != "" && txtToDate.Text != "") && (Convert.ToDateTime(txtFromDate.Text) > Convert.ToDateTime(txtToDate.Text)))
+            {
+                msg += "\\nFrom Date should not be greater than Today’s Date and To Date";
+            }
+
+            if ((txtFromDate.Text != "" && txtToDate.Text != "") && (Convert.ToDateTime(txtFromDate.Text) > DateTime.Today))
+            {
+                msg += "\\nFrom Date should not be greater than Today’s Date";
+            }
+        }
+        else
+        {
+            if (txtReportName.Text == "")
+                msg += "\\nPlease select Report Name.";
+
+            if (lstTeamName.SelectedIndex == -1)
+                msg += "\\nPlease Select Team Name";
+
+            if (lstLocation.SelectedIndex == -1)
+                msg += "\\nPlease Select Location";
+
+            if (lstProcessName.SelectedIndex == -1)
+                msg += "\\nPlease Select Process";
+
+            if (lstSubProcess.SelectedIndex == -1)
+                msg += "\\nPlease Select Sub Process";
+
+            if (lstSelectedparameterOptions.Items.Count == 0)
+                msg += "\\nPlease Select Common Parameter Name";
+
+            if (txtFromDate.Text == "")
+                msg += "\\nPlease select From date.";
+
+            if (txtToDate.Text == "")
+                msg += "\\nPlease select To date.";
+
+            if ((txtFromDate.Text != "" && txtToDate.Text != "") && (Convert.ToDateTime(txtFromDate.Text) > Convert.ToDateTime(txtToDate.Text)))
+            {
+                msg += "\\nFrom Date should not be greater than Today’s Date and To Date";
+            }
+
+            if ((txtFromDate.Text != "" && txtToDate.Text != "") && (Convert.ToDateTime(txtFromDate.Text) > DateTime.Today))
+            {
+                msg += "\\nFrom Date should not be greater than Today’s Date";
+            }
+
+        }
+
+        if (msg != "")
+        {
+            ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('" + msg + "')", true);
+            return false;
+        }
+        return true;
+    }
+
+
+    private DataTable BindDynamicGrid()
+    {
+        try
+        {
+            DataTable dt;
+            DataSet ds;
+            DataTable TeammappingDT = new DataTable();
+            AuditReportBE objAuditReportBE = new AuditReportBE();
+            var TeamNameCount = (from ListItem li in lstTeamName.Items
+                                 where li.Selected == true
+                                 select li).Count();
+            if (TeamNameCount > 1)
+            {
+                lstProcessName.Attributes.Add("disabled", "");
+                lstLocation.Attributes.Add("disabled", "");
+                lstSubProcess.Attributes.Add("disabled", "");
+                string lstSelectedItems = string.Empty;
+                string MultipleTeamID = string.Empty;
+
+                objAuditReportBE.ClientID = Utility.GetClientId();
+                foreach (ListItem lst in lstTeamName.Items)
+                    if (lst.Selected)
+                    {
+                        objAuditReportBE.CheckTeamMappingFlag = "";
+                        MultipleTeamID = MultipleTeamID + lst.Value + ",";
+                        objAuditReportBE.MultiTEamIDS = lst.Value;
+                        ViewState["OldTeam"] = objAuditReportBE.MultiTEamIDS;
+                        TeammappingDT = BusinessLayer.AuditReport.Proc_GetMultipleTeamMappingID(objAuditReportBE);
+                        if (TeammappingDT.Rows[0][0].ToString() == "")
+                        {
+                            ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Team Mapping ID Did Not Exist')", true);
+                            return null;
+                        }
+                        objAuditReportBE.MultipleTeamID = MultipleTeamID.Remove(MultipleTeamID.LastIndexOf(","));
+
+                    }
+                objAuditReportBE.CreatedBy = Utility.GetUserObj().EmployeeID;
+                objAuditReportBE.dtFrm = txtFromDate.Text;
+                objAuditReportBE.dtTo = txtToDate.Text;
+                objAuditReportBE.Domain = Convert.ToString(Session["Domain"]);
+
+                foreach (ListItem item in this.lstSelectedparameterOptions.Items)
+                {
+                    if (item.Selected)
+                    {
+                        lstSelectedItems = lstSelectedItems + item.Value + ",";
+                        objAuditReportBE.ColumnName = lstSelectedItems.Remove(lstSelectedItems.LastIndexOf(","));
+                    }
+                }
+                if (objAuditReportBE.ColumnName == null)
+                {
+                    objAuditReportBE.SelectedparameterFlag = "ALL";
+                    ds = BusinessLayer.AuditReport.Proc_GetMultipleTeamDynamicReportDetails(objAuditReportBE);
+                }
+                else
+                {
+                    ds = BusinessLayer.AuditReport.Proc_GetMultipleTeamDynamicReportDetails(objAuditReportBE);
+                }
+                grdDynamicReport.DataSource = ds.Tables[0];
+                grdDynamicReport.DataBind();
+
+                divGridDynamicReport.Visible = grdDynamicReport.Rows.Count > 0;
+                return ds.Tables[0];
+            }
+            else
+            {
+
+                string lstSelectedItems = string.Empty;
+                int id = 0;
+                string SelectedSubprocessID = string.Empty;
+                objAuditReportBE.ClientID = Utility.GetClientId();
+                foreach (ListItem lst in lstTeamName.Items)
+                    if (lst.Selected)
+                    {
+                        objAuditReportBE.TeamID = Convert.ToInt32(lst.Value);
+                        ViewState["OldTeam"] = objAuditReportBE.TeamID;
+                    }
+                foreach (ListItem lst in lstLocation.Items)
+                    if (lst.Selected)
+                    {
+                        objAuditReportBE.LocationName = lst.Text;
+                        ViewState["OldLocation"] = objAuditReportBE.LocationName;
+                    }
+
+                foreach (ListItem lst in lstProcessName.Items)
+                    if (lst.Selected)
+                    {
+                        objAuditReportBE.ProcessID = Convert.ToInt32(lst.Value);
+                        ViewState["OldProcess"] = objAuditReportBE.ProcessID;
+                    }
+
+                foreach (ListItem lst in lstSubProcess.Items)
+                    if (lst.Selected)
+                    {
+                        objAuditReportBE.SubProcessID =Convert.ToInt32(lst.Value);
+                        objAuditReportBE.CheckTeamMappingFlag = "S";
+                        TeammappingDT = BusinessLayer.AuditReport.Proc_GetTeamMappingID(objAuditReportBE);
+                        if (TeammappingDT.Rows[0][0].ToString() == "")
+                        {
+                            ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Team Mapping ID Did Not Exist')", true);
+                            return null;
+                        }
+                        SelectedSubprocessID = SelectedSubprocessID + lst.Value + ",";
+                        objAuditReportBE.MultiSubProcessID = SelectedSubprocessID.Remove(SelectedSubprocessID.LastIndexOf(","));
+                        ViewState["OldSubProcess"] = objAuditReportBE.MultiSubProcessID;
+                    }
+
+                //if (lstSelectedparameterOptions.SelectedIndex == -1)
+                //{
+                //    ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Select Common Parameter ')", true);
+                //    return null;
+                //}
+
+                foreach (ListItem item in lstSelectedparameterOptions.Items)
+                {
+                    //objAuditReportBE.ColumnName = objAuditReportBE.ColumnName + "," + item.Value;
+                    lstSelectedItems = lstSelectedItems + item.Value + ",";
+                    objAuditReportBE.ColumnName = lstSelectedItems.Remove(lstSelectedItems.LastIndexOf(","));
+
+                }
+                objAuditReportBE.CreatedBy = Utility.GetUserObj().EmployeeID;
+                objAuditReportBE.dtFrm = txtFromDate.Text;
+                objAuditReportBE.dtTo = txtToDate.Text;
+                objAuditReportBE.Domain = Convert.ToString(Session["Domain"]);
+                if (objAuditReportBE.ColumnName == null)
+                {
+                    objAuditReportBE.SelectedparameterFlag = "ALL";
+                    dt = BusinessLayer.AuditReport.Proc_GetDynamicReportDetails(objAuditReportBE);
+                }
+                else
+                {
+                    dt = BusinessLayer.AuditReport.Proc_GetDynamicReportDetails(objAuditReportBE);
+                }
+                grdDynamicReport.DataSource = dt;
+                grdDynamicReport.DataBind();
+
+                divGridDynamicReport.Visible = grdDynamicReport.Rows.Count > 0;
+                return dt;
+            }
+
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+
+    protected void btnSubmit_Click(object sender, EventArgs e)
+    {
+        if (ValidateReportPage())
+        {
+            try
+            {
+                BindDynamicGrid();
+                if (grdDynamicReport.Rows.Count == 0)
+                    ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('No Records found.')", true);
+                // ClearFields();
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message == "The definition for column 'INT' must include a data type.")
+                {
+                    ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "ValidationMessage", "alert('Data not found')", true);
+                    //Response.Redirect("DynamicReport.aspx", false);
+                    ClearFields();
+                }
+                else
+                {
+                    throw ex;
+                }
+
+
+            }
+        }
+    }
+
+    private void ClearFields()
+    {
+        txtFromDate.Text = "";
+        txtToDate.Text = "";
+        txtReportName.Text = "";
+        //lstParameterOption.SelectedIndex = -1;
+        lstSelectedparameterOptions.Items.Clear();
+        lstTeamName.ClearSelection();
+        lstLocation.ClearSelection();
+        lstProcessName.ClearSelection();
+        lstSubProcess.ClearSelection();
+        divGridDynamicReport.Visible = false;
+        grdDynamicReport.DataSource = null;
+        grdDynamicReport.DataBind();
+    }
+
+
+    protected void grdDynamicReport_PageIndexChanging(object sender, GridViewPageEventArgs e)
+    {
+        grdDynamicReport.PageIndex = e.NewPageIndex;
+        BindDynamicGrid();
+    }
+
+    protected void grdDynamicReport_Sorting(object sender, GridViewSortEventArgs e)
+    {
+
+    }
+
+    private void ExportToExcel()
+    {
+        DataTable dt = new DataTable();
+        dt = BindDynamicGrid();
+        using (XLWorkbook wb = new XLWorkbook())
+        {
+            DataColumn dtc = new DataColumn("Sr. No.", typeof(System.Int32));
+            dt.Columns.Add(dtc);//.SetOrdinal(0);
+            dtc.AutoIncrement = true;
+            dtc.AutoIncrementSeed = 1;
+            dtc.AutoIncrementStep = 1;
+            dtc.SetOrdinal(0);
+            dt.AcceptChanges();
+            for (int j = 0; j < dt.Rows.Count; j++)
+            {
+                dt.Rows[j]["Sr. No."] = j + 1;
+            }
+            dt.AcceptChanges();
+            if (dt.Rows.Count > 1)
+            {
+
+                var oSheet = wb.Worksheets.Add(dt, txtReportName.Text);
+
+            }
+            //ClosedXML.Excel.IXLWorksheet worksheet1 = null;
+            //wb.Worksheets.TryGetWorksheet("Organization Details", out worksheet1);
+            //worksheet1.Column("AA").Hide();
+
+            //ClosedXML.Excel.IXLWorksheet worksheet2 = null;
+            //wb.Worksheets.TryGetWorksheet("Customer Details", out worksheet2);
+            //worksheet2.Column("M").Hide();
+
+            // wb.Worksheets.Add(ds);
+            wb.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            wb.Style.Font.Bold = true;
+            Response.Clear();
+            Response.Buffer = true;
+            Response.Charset = "";
+            Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            Response.AddHeader("content-disposition", "attachment;filename=" + txtReportName.Text + ".xlsx");
+            using (MemoryStream MyMemoryStream = new MemoryStream())
+            {
+                wb.SaveAs(MyMemoryStream);
+                MyMemoryStream.WriteTo(Response.OutputStream);
+                Response.Flush();
+                Response.End();
+            }
+
+        }
+        //Response.Clear();
+        //Response.Buffer = true;
+        //Response.AddHeader("content-disposition", "attachment;filename=" + txtReportName.Text + ".xls");
+        //Response.Charset = "";
+        //Response.ContentType = "application/vnd.ms-excel";
+        //StringWriter sw = new StringWriter();
+        //HtmlTextWriter hw = new HtmlTextWriter(sw);
+        //GridView grd = new GridView();
+        ////grd = grdDynamicReportExport;
+
+        ////AuditReportBE objAuditReportBE = new AuditReportBE();
+        ////objAuditReportBE.TeamMapping = new TeamMappingBE(Utility.GetClientId(), ucTeamProcessDetail.GetSelectedTeam, ucTeamProcessDetail.GetSelectedProcess, ucTeamProcessDetail.GetSelectedSubProcess, ucTeamProcessDetail.GetSelectedLocation);
+        ////objAuditReportBE.CreatedBy = Utility.GetUserObj().EmployeeID;
+        ////objAuditReportBE.dtFrm = txtFromDate.Text;
+        ////objAuditReportBE.dtTo = txtToDate.Text;
+        ////DataTable dt = BusinessLayer.AuditReport.getReport(objAuditReportBE);
+
+        //grd.DataSource = BindDynamicGrid();
+        //grd.AllowPaging = false;
+        //grd.AllowSorting = true;
+        //grd.DataBind();
+        //grd.RenderControl(hw);
+        //string style = @"<style> TABLE { border: 1px solid black; } TD { border: 1px solid black; } .textmode { mso-number-format:\@; } </style> ";
+        //Response.Write(style);
+        //Response.Output.Write(sw.ToString());
+        //Response.Flush();
+        //Response.End();
+    }
+
+    public override void VerifyRenderingInServerForm(Control control)
+    {
+
+    }
+
+    protected void ibtnExcel_Click(object sender, EventArgs e)
+    {
+        string ExcelName = txtReportName.Text;
+
+    }
+
+    protected void ibtnExcel_Click1(object sender, EventArgs e)
+    {
+        ExportToExcel();
+    }
+
+
+    protected void btnCan_Click(object sender, EventArgs e)
+    {
+        //ClearFields();
+        Response.Redirect("DynamicReport.aspx", false);
+    }
+
+
+}
