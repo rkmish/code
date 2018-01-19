@@ -721,3 +721,269 @@ public partial class UI_Report_DynamicReport : System.Web.UI.Page
 
 
 }
+
+aspx:
+<%@ Page Language="C#" AutoEventWireup="true" MasterPageFile="~/Resources/MasterPages/QMS.master" CodeFile="DynamicReport.aspx.cs" Inherits="UI_Report_DynamicReport" EnableEventValidation = "false" %>
+
+<%@ Register Assembly="AjaxControlToolkit" Namespace="AjaxControlToolkit" TagPrefix="cc1" %>
+<%@ Register Src="~/Resources/UserControl/TeamProcessDetail.ascx" TagPrefix="uc1" TagName="TeamProcessDetail" %>
+
+
+
+<asp:Content ID="Content1" ContentPlaceHolderID="ContentPlaceHolder1" runat="Server">
+    <script>
+        function textLimit(field, maxlen) {
+            if (field.value.length > maxlen) {
+                field.value = field.value.substring(0, maxlen);
+                alert('Length should not exceed 200 characters');
+            }
+        }
+       
+        $(document).ready(function () {
+            $('#btnSubmit').click(function () {
+                alert('hi')
+            });
+
+
+        });
+
+    </script>
+    <style>
+        /*.footer {
+            margin-top: 450px;
+        }*/
+
+        .button {
+            margin-top: 30px;
+            margin-left: 200px;
+        }
+    </style>
+    <!--  Form starts here -->
+    <asp:UpdatePanel ID="upControlTemplate" runat="server">
+
+        <ContentTemplate>
+            <header>
+                <h2>Dynamic Report</h2>
+            </header>
+            <div class="requiredfield-message">
+                <span><span class="sign">*</span>Indicates Required Field</span>
+            </div>
+        
+           
+           <%-- <div>
+                <uc1:TeamProcessDetail runat="server" ID="ucTeamProcessDetail" />
+            </div>--%>
+            <div class="formfields">
+                <div class="formfields-left">
+                    <div class="form-label-container">
+                        <div class="form-label">
+                            <asp:Label ID="lblReportName" runat="server" Text="Report Name"></asp:Label>
+                            <span class="requiredfield">*</span>
+                        </div>
+                    </div>
+                    <div class="form-input">
+                        <asp:TextBox ID="txtReportName" runat="server" CssClass="textField" onkeyup="textLimit(this,200)" Enabled="True"></asp:TextBox>
+                    </div>
+                </div>
+            </div>
+
+            <div class="formfields">
+                <div class="formfields-left">
+                    <div class="form-label-container">
+                        <div class="form-label">
+                            <asp:Label ID="lblTeamName" runat="server" Text="Team"></asp:Label>
+                            <span class="requiredfield">*</span>
+                        </div>
+                    </div>
+                    <div class="form-input">
+                         <asp:ListBox ID="lstTeamName" runat="server" CssClass="listbox" SelectionMode="Multiple" AutoPostBack="true" OnSelectedIndexChanged="lstTeamName_SelectedIndexChanged">
+
+                         </asp:ListBox>
+                       <%-- <select name="TeamName" id="ddlTeamName" runat="server" multiple="true" style="height:50px" onselect="">
+                        </select>--%>
+                        <%--<asp:TextBox ID="txtTeamName" runat="server" CssClass="textField" Enabled="True"></asp:TextBox>--%>
+                    </div>
+                </div>
+                <div class="formfields-right">
+                    <div class="form-label-container">
+                        <div class="form-label">
+                            <asp:Label ID="lblLocation" runat="server" Text="Location"></asp:Label>
+                            <span class="requiredfield">*</span>
+                        </div>
+                    </div>
+                    <div class="form-input">
+                        <asp:ListBox ID="lstLocation" runat="server" CssClass="listbox" SelectionMode="Multiple" AutoPostBack="true" OnSelectedIndexChanged="lstLocation_SelectedIndexChanged">
+
+                         </asp:ListBox>
+                        <%--<select name="Location" id="ddlLocation" runat="server" multiple="true">
+                        </select>--%>
+                        <%-- <asp:TextBox ID="txtLocation" runat="server" CssClass="textField" Enabled="True"></asp:TextBox>--%>
+                    </div>
+                </div>
+                <div class="formfields-left">
+                    <div class="form-label-container">
+                        <div class="form-label">
+                            <asp:Label ID="LabelProcess" runat="server" Text="Process"></asp:Label>
+                            <span class="requiredfield">*</span>
+                        </div>
+                    </div>
+                    <div class="form-input">
+                        <asp:ListBox ID="lstProcessName" runat="server" CssClass="listbox" SelectionMode="Multiple" AutoPostBack="true" OnSelectedIndexChanged="lstProcessName_SelectedIndexChanged">
+
+                         </asp:ListBox>
+                        <%--<select name="ProcessName"  id="ddlProcessName" runat="server" multiple="true">
+                        </select>--%>
+                        <%-- <asp:TextBox ID="txtProcessName" runat="server" CssClass="textField" Enabled="True"></asp:TextBox>--%>
+                    </div>
+                </div>
+                <div class="formfields-right">
+                    <div class="form-label-container">
+                        <div class="form-label">
+                            <asp:Label ID="LabelSubprocess" runat="server" Text="Sub Process"></asp:Label>
+                            <span class="requiredfield">*</span>
+                        </div>
+                    </div>
+                    <div class="form-input">
+                         <asp:ListBox ID="lstSubProcess" runat="server" CssClass="listbox" SelectionMode="Multiple" AutoPostBack="true" OnSelectedIndexChanged="lstSubProcess_SelectedIndexChanged">
+
+                         </asp:ListBox>
+                       <%-- <select name="SubProcess" id="ddlSubProcess" runat="server" multiple="true">
+                        </select>--%>
+                        <%-- <asp:TextBox ID="txtSubProcess" runat="server" CssClass="textField" Enabled="True"></asp:TextBox>--%>
+                    </div>
+                </div>
+            </div>
+
+            <div class="formfields" runat="server" id="divTeamSelection">
+                <div class="formfields-all">
+                    <div class="form-label-container">
+                        <div class="form-label">
+                            <asp:Label ID="lblCommonParameterName" runat="server" Text="Common Parameter"></asp:Label>
+                             <span class="requiredfield">*</span>
+                        </div>
+                    </div>
+                    <div class="form-input">
+                        <asp:ListBox ID="lstParameterOption" runat="server" CssClass="listbox" SelectionMode="Multiple" >
+                            <asp:ListItem Text="Agent Name" Value="[Agent Name]"></asp:ListItem>
+                            <asp:ListItem Text="ExcelID" Value="ExcelID"></asp:ListItem>
+                            <asp:ListItem Text="QC Done By" Value="[QC Done By]"></asp:ListItem>
+                            <asp:ListItem Text="QC Done By EmployeeId" Value="[QC Done By EmployeeId]"></asp:ListItem>
+                            <asp:ListItem Text="QC Done On" Value="[QC Done On]"></asp:ListItem>
+                            <asp:ListItem Text="Sample Date" Value="[Sample Date]"></asp:ListItem>
+                            <asp:ListItem Text="Sampling Status" Value="[Sampling Status]"></asp:ListItem>
+                            <asp:ListItem Text="Audit Sheet Name" Value="[Audit Sheet Name]"></asp:ListItem>
+                            <asp:ListItem Text="Audit Status" Value="[Audit Status]"></asp:ListItem>
+                            <asp:ListItem Text="Criteria Name" Value="[Criteria Name]"></asp:ListItem>
+                            <asp:ListItem Text="SubCriteria Name" Value="[SubCriteria Name]"></asp:ListItem>
+                            <asp:ListItem Text="Parameter Name" Value="[Parameter Name]"></asp:ListItem>
+                            <asp:ListItem Text="Weightage" Value="Weightage"></asp:ListItem>
+                            <asp:ListItem Text="Criticality" Value="Criticality"></asp:ListItem>
+                            <asp:ListItem Text="Score" Value="Score"></asp:ListItem>
+                            <asp:ListItem Text="Feedback" Value="Feedback"></asp:ListItem>
+                            <asp:ListItem Text="Overall Comments" Value="[Overall Comments]"></asp:ListItem>
+                            <asp:ListItem Text="RCAID" Value="RCAID"></asp:ListItem>
+                            <asp:ListItem Text="Why1" Value="Why1"></asp:ListItem>
+                            <asp:ListItem Text="Why2" Value="Why2"></asp:ListItem>
+                            <asp:ListItem Text="Why3" Value="Why3"></asp:ListItem>
+                            <asp:ListItem Text="Why4" Value="Why4"></asp:ListItem>
+                            <asp:ListItem Text="Why5" Value="Why5"></asp:ListItem>
+                            <asp:ListItem Text="AlternateID" Value="AlternateID"></asp:ListItem>
+                            <asp:ListItem Text="AgentID" Value="AgentID"></asp:ListItem>
+                               
+                        </asp:ListBox>
+                        <div class="arrow_selected">
+                            <span style="margin-bottom: 5px">
+                                <asp:ImageButton ID="imgBtnAddTeam" runat="server" AlternateText="Add Parameter" ImageUrl="~/Resources/Images/arrow-skip-right-icon.gif" OnClick="imgBtnAddParameter_Click" Width="34px" Height="21px" alt="arrow left" /></span>
+                            <span>
+                                <asp:ImageButton ID="imgBtnRemoveTeam" CssClass="clear" runat="server" AlternateText="Remove Parameter" ImageUrl="~/Resources/Images/arrow-skip-left-icon.gif" OnClick="imgBtnRemoveParameter_Click" Width="34px" Height="21px" alt="arrow left" /></span>
+                        </div>
+                        <asp:ListBox ID="lstSelectedparameterOptions" runat="server" CssClass="listbox" SelectionMode="Multiple" Style="margin-left: 5px"></asp:ListBox>
+                    </div>
+                </div>
+            </div>
+
+            <div class="formfields" id="DivStartEndDate" runat="server">
+                <div class="formfields-left">
+                    <div class="form-label-container">
+                        <div class="form-label">
+                            <asp:Label ID="Label1" runat="server" Text="From Date"></asp:Label>
+                            <span class="requiredfield">*</span>
+                        </div>
+                    </div>
+                    <div class="form-input calender_container">
+                        <asp:TextBox ID="txtFromDate" runat="server" CssClass="textfield" Enabled="false"></asp:TextBox>
+                        <cc1:CalendarExtender ID="calEtxtFromDate" runat="server" Enabled="True" Format="yyyy/MM/dd"
+                            PopupButtonID="btnCalenderFrom" TargetControlID="txtFromDate">
+                        </cc1:CalendarExtender>
+                        <asp:Button ID="btnCalenderFrom" runat="server" CssClass="icon calender" />
+                    </div>
+                </div>
+                <div class="formfields-right">
+                    <div class="form-label-container">
+                        <div class="form-label">
+                            <asp:Label ID="Label4" for="selectField" runat="server" Text="To Date"></asp:Label>
+                            <span class="requiredfield">*</span>
+                        </div>
+                    </div>
+                    <div class="form-input calender_container">
+                        <asp:TextBox ID="txtToDate" runat="server" CssClass="textfield" Enabled="false"></asp:TextBox>
+                        <cc1:CalendarExtender ID="calEtxtToDate" runat="server" Enabled="True" Format="yyyy/MM/dd"
+                            PopupButtonID="btnCalenderTo" TargetControlID="txtToDate">
+                        </cc1:CalendarExtender>
+                        <asp:Button ID="btnCalenderTo" runat="server" CssClass="icon calender" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="formbutton  button">
+                <div class="buttonOrange">
+                    <div class="DarkPartOrange"></div>
+                    <asp:Button class="primary-button" ID="btnSubmit" runat="server" Text="Submit" OnClick="btnSubmit_Click" />
+                   
+                </div>
+                <div class="buttonGray">
+                    <div class="DarkPartGray"></div>
+                    <asp:Button ID="btnCan" runat="server" Text="Cancel" CssClass="secondary-button" OnClick="btnCan_Click" />
+                </div>
+            </div>
+
+             <div class="clear"></div>
+            <div class="grid-container" runat="server" visible="false" id="divGridDynamicReport">
+                <header>
+                    <h2>Dynamic Report</h2>
+                </header>
+                <div class="grid-link">
+                    <asp:LinkButton ID="ibtnExcel" runat="server" CssClass="icon export-to-excel" ToolTip="Export to excel"
+                        OnClick="ibtnExcel_Click1" CausesValidation="false"></asp:LinkButton>
+                </div>
+                <div class="grid-container-top">
+                   <%-- <uc2:PageSize runat="server" ID="ucPageSize" OnddlgvPageSizeChangedEvent="ucPageSize_ddlgvPageSizeChangedEvent"/>--%>
+                    <div class="search-panel">
+                    </div>
+                    <div class="legend">
+                    </div>
+                </div>
+                <div class="grid-border">
+                    <div class="dataGrid" style="overflow: auto; width: 100%;">
+                        <asp:GridView ID="grdDynamicReport" runat="server" CssClass="grid-content" AllowPaging="True" AllowSorting="false" OnSorting="grdDynamicReport_Sorting"
+                            AutoGenerateColumns="true" PageSize="15" Width="100%"
+                            OnPageIndexChanging="grdDynamicReport_PageIndexChanging" PagerStyle-CssClass="gridfooter">
+                            <%-- CssClass="dataValue" --%>
+                            <PagerSettings Mode="Numeric" PageButtonCount="10" />
+                            <Columns>
+                                <asp:TemplateField HeaderText="Sr. No.">
+                                    <ItemTemplate>
+                                        <%#Container.DataItemIndex+1 %>
+                                    </ItemTemplate>
+                                </asp:TemplateField>
+                            </Columns>
+                            <HeaderStyle CssClass="grid_b" />
+                            <AlternatingRowStyle BackColor="White" CssClass="grid_grey_t" />
+                        </asp:GridView>
+                    </div>
+                </div>
+            </div>
+             <div class="clear"></div>
+        </ContentTemplate>
+    </asp:UpdatePanel>
+</asp:Content>
