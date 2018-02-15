@@ -37,3 +37,15 @@ public static string ConvertDatatableToXML(List<string> dataList, string columnN
         xmlstr = sr.ReadToEnd();
         return (xmlstr);
     }
+ 2.To chek count of datatable column value for true or false:
+ dtt = BusinessLayer.TeamMapping.ChkBitFlagForSubprocess(objTeamMappingBE);
+int IsCheckTrueCount = dtt.AsEnumerable().Where(r => r["IsCheck"].Equals(true)).Count();
+int IsCheckFalseCount = dtt.AsEnumerable().Where(r => r["IsCheck"].Equals(false)).Count();
+3.2.To chek count of datatable column value:
+var IsTableCreated = from tc in dttTableCreated.AsEnumerable().
+                                         Where(row => row.Field<String>("IsTableCreated") != "0")
+                                         select tc.Field<string>("IsTableCreated").Count();
+                    int IsTableCreatedC = IsTableCreated.Count();
+
+
+
