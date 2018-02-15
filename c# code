@@ -1,0 +1,25 @@
+1.Convert Dattable to xml:
+DataTable dt = (DataTable)Session["dtGetdetails"];
+List<string> list = (from row in dt.AsEnumerable() select Convert.ToString(row["SubProcessID"])).ToList();
+var businessList = ConvertDatatableToXML(list, "Subprocess");
+TempDetails.MultipleSubProcessID = businessList;
+
+public static string ConvertDatatableToXML(List<string> dataList, string columnName)
+    {
+        DataTable table = new DataTable();
+        table.Columns.Add(columnName.ToLower());
+        foreach (var array in dataList)
+        {
+            table.Rows.Add(array);
+        }
+        table.AcceptChanges();
+        table.TableName = columnName;
+
+        MemoryStream str = new MemoryStream();
+        table.WriteXml(str, true);
+        str.Seek(0, SeekOrigin.Begin);
+        StreamReader sr = new StreamReader(str);
+        string xmlstr;
+        xmlstr = sr.ReadToEnd();
+        return (xmlstr);
+    }
