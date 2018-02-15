@@ -4,6 +4,20 @@ List<string> list = (from row in dt.AsEnumerable() select Convert.ToString(row["
 var businessList = ConvertDatatableToXML(list, "Subprocess");
 TempDetails.MultipleSubProcessID = businessList;
 
+Example for listbox to set value of string into listitem then convert it into xml and pass it to variable 
+List<string> lstTableName = new List<string>();
+foreach (ListItem lst in ucTeamProcessDetail.SubProcessList.Items)
+{
+TabName = "TT_" + ucTeamProcessDetail.Team.SelectedItem.Text.ToString() + "_" + ucTeamProcessDetail.Location.SelectedItem.Text.ToString() + "_" + ucTeamProcessDetail.Process.SelectedItem.Text.ToString() + "_" + lst.Text.ToString();
+//TabName.Replace(' ', '_');
+TabName = TabName.Replace(" ", "_");
+lstTableName.Add(TabName);
+}
+
+var tableNameList = ConvertDatatableToXML(lstTableName, "Tablename");
+TempDetails.TableName = tableNameList;
+
+
 public static string ConvertDatatableToXML(List<string> dataList, string columnName)
     {
         DataTable table = new DataTable();
