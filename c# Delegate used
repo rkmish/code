@@ -1,0 +1,68 @@
+ public delegate void BtnApplyAllEventHandler(object sender, BtnApplyAllEventArgs e);
+    public delegate void ProcesschangedEventHandler(object sender, ProcessChangedEventArgs e);
+    /// <summary>
+    /// Occurs when [SubProcess changed event].
+    /// </summary>
+    
+    public event BtnApplyAllEventHandler ApplyAllButtonClick;
+    public event ProcesschangedEventHandler ProcessChangedEvent;
+    
+    
+    
+    public class BtnApplyAllEventArgs : EventArgs
+{
+
+    /// <summary>
+    /// The _team
+    /// </summary>
+    private Button _btnApplyAll;
+
+    /// <summary>
+    /// Gets or sets the team.
+    /// </summary>
+    /// <value>The team.</value>
+    public Button BtnApplyAll
+    {
+        get { return _btnApplyAll; }
+        set { _btnApplyAll = value; }
+    }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ApplyButtonEventArgs" /> class.
+    /// </summary>
+    /// <param name="team">The team.</param>
+    public BtnApplyAllEventArgs(Button MbtnApplyAll)
+    {
+        BtnApplyAll = MbtnApplyAll;
+    }
+}
+
+
+public class ProcessChangedEventArgs : EventArgs
+{
+
+    /// <summary>
+    /// The _team
+    /// </summary>
+    private DropDownList _Process;
+
+    /// <summary>
+    /// Gets or sets the team.
+    /// </summary>
+    /// <value>The team.</value>
+    public DropDownList Process
+    {
+        get { return _Process; }
+        set { _Process = value; }
+    }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TeamChangedEventArgs" /> class.
+    /// </summary>
+    /// <param name="team">The team.</param>
+    public ProcessChangedEventArgs(DropDownList MProcess)
+    {
+        Process = MProcess;
+    }
+}
+
+
+  <uc1:TeamProcessDetail runat="server" ID="ucTeamProcessDetail" OnProcessChangedEvent ="ddlProcess_Changed"  OnSubProcessChangedEvent="ddlSubProcess_Changed"  OnApplyAllButtonClick="btnApplyAll_Click"  AuditsheetVisibilty="false" CheckboxVisibility="true" />
