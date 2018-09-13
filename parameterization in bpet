@@ -1,0 +1,1009 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using BPETTracker.Business;
+using System.Data.SqlClient;
+using System.Collections.Generic;
+using System.Configuration;
+
+public partial class UI_Parameterization : System.Web.UI.Page
+{
+    string Flag = "";
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        //BindGridview();
+        if (!this.IsPostBack)
+        {
+            gvDetails.Visible = false;
+            DataTable dt = new DataTable();
+            dt.Columns.AddRange(new DataColumn[3] { new DataColumn("EmployeeId"), new DataColumn("EmployeeName"), new DataColumn("Vertical") });
+            ViewState["Employee"] = dt;
+            this.BindGrid();
+            BindNotificationType();
+            BindVertical();
+            string ddlvalue = dlreminder.SelectedItem.Text;
+            DivWeekly.Style.Add("display", "block");
+            DivMonthly.Style.Add("display", "none");
+
+            DataSet dsGrid = new DataSet();
+            string Flag = "GetParameterizedDetails";
+            int NotificationValue = Convert.ToInt32(dlNotificationType.SelectedValue);
+            dsGrid = Parameterization.GetEmployeeName("", NotificationValue, Flag);
+
+            //On page load if notification type has data then to display it on page load for first record of dropdown
+            if (dsGrid.Tables[0].Rows.Count != 0)
+            {
+                string reminder = Convert.ToString(dsGrid.Tables[0].Rows[0][1]);
+                DataTable dtt = dsGrid.Tables[0];
+                DataView view = new DataView(dsGrid.Tables[0]);
+                DataTable resultTable = view.ToTable(false, "EmployeeName", "Vertical");
+                ViewState["Employee"] = resultTable;
+                gvDetails.DataSource = resultTable;
+                gvDetails.DataBind();
+                if (reminder == "Weekly")
+                {
+                    DataView dv = new DataView(dsGrid.Tables[0]);
+                    dv.RowFilter = "Reminder ='Weekly'";
+                    dtt = dv.Table;
+                    dlreminder.SelectedIndex = -1;
+                    dlreminder.Items.FindByText(reminder).Selected = true;
+                    DivWeekly.Style.Add("display", "block");
+                    DivMonthly.Style.Add("display", "none");
+
+                    foreach (DataRow row in dtt.Rows)
+                    {
+                        if (row["Monday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Monday").Selected = true;
+                        }
+                        if (row["Tuesday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Tuesday").Selected = true;
+                        }
+                        if (row["Wednesday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Wednesday").Selected = true;
+                        }
+                        if (row["Thursday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Thursday").Selected = true;
+                        }
+                        if (row["Friday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Friday").Selected = true;
+                        }
+                        if (row["Saturday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Saturday").Selected = true;
+                        }
+                        if (row["Sunday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Sunday").Selected = true;
+                        }
+                    }
+                }
+                else
+                {
+                    DataView dv = new DataView(dsGrid.Tables[0]);
+                    dv.RowFilter = "Reminder ='Monthly'";
+                    dtt = dv.Table;
+                    dlreminder.SelectedIndex = -1;
+                    dlreminder.Items.FindByText(reminder).Selected = true;
+                    DivMonthly.Style.Add("display", "block");
+                    DivWeekly.Style.Add("display", "none");
+                    string Occurence = Convert.ToString(dsGrid.Tables[0].Rows[0][2]);
+                    //string Monthday = Convert.ToString(dsGrid.Tables[0].Rows[0][5]);
+                    ddlOccurence.SelectedIndex = -1;
+                    dlMonthlyday.SelectedIndex = -1;
+                    ddlOccurence.Items.FindByText(Occurence).Selected = true;
+                    foreach (DataRow row in dtt.Rows)
+                    {
+                        if (row["Monday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Monday").Selected = true;
+                        }
+                        if (row["Tuesday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Tuesday").Selected = true;
+                        }
+                        if (row["Wednesday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Wednesday").Selected = true;
+                        }
+                        if (row["Thursday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Thursday").Selected = true;
+                        }
+                        if (row["Friday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Friday").Selected = true;
+                        }
+                        if (row["Saturday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Saturday").Selected = true;
+                        }
+                        if (row["Sunday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Sunday").Selected = true;
+                        }
+                    }
+
+                }
+
+            }
+        }
+    }
+
+    protected void BindGrid()
+    {
+        //ViewState["Employee"] = null;
+        gvDetails.DataSource = (DataTable)ViewState["Employee"];
+        gvDetails.DataBind();
+    }
+
+    protected void InsertGrid(object sender, EventArgs e)
+    {
+        if (ValidateAddItem())
+        {
+            if (ViewState["Employee"] == null)
+            {
+                DataTable dt = new DataTable();
+                dt.Columns.AddRange(new DataColumn[3] { new DataColumn("EmployeeId"), new DataColumn("EmployeeName"), new DataColumn("Vertical") });
+                ViewState["Employee"] = dt;
+                DataTable dtt = (DataTable)ViewState["Employee"];
+                foreach (ListItem lst in lstVertical.Items)
+                    if (lst.Selected)
+                    {
+                        //dtt.Rows.Add(HttpContext.Current.Session["hdEmp"], txtEmployee.Text, lst.Text);
+                        dtt.Rows.Add(hfEmpId.Value, txtEmployee.Text, lst.Text);
+                        //ViewState["Employee"] = dtt;
+                        this.BindGrid();
+                    }
+                txtEmployee.Text = string.Empty;
+                lstVertical.ClearSelection();
+            }
+            else
+            {
+                //DataTable dt = new DataTable();
+                // dt.Columns.AddRange(new DataColumn[2] { new DataColumn("EmployeeName"), new DataColumn("Vertical") });
+                //ViewState["Employee"] = dt;
+                DataTable dtt = (DataTable)ViewState["Employee"];
+                foreach (ListItem lst in lstVertical.Items)
+                    if (lst.Selected)
+                    {
+                        //dtt.Rows.Add(HttpContext.Current.Session["hdEmp"], txtEmployee.Text, lst.Text);
+                        dtt.Rows.Add(hfEmpId.Value, txtEmployee.Text, lst.Text);
+                       
+                        //ViewState["Employee"] = dtt;
+                        this.BindGrid();
+                    }
+                txtEmployee.Text = string.Empty;
+                lstVertical.ClearSelection();
+            }
+        }
+        gvDetails.Visible = true;
+        //pnlTemplateView.Visible = false;
+
+    }
+
+    private void BindNotificationType()
+    {
+        try
+        {
+            string Flag = "GetNotificationType";
+            // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+            //dlNotificationType.SelectedIndex = -1;
+            DataSet ds = Parameterization.GetEmployeeName("", 0, Flag);
+            //var dt = objDynamic.GetDetails('Team');
+            dlNotificationType.DataSource = ds.Tables[0];
+            dlNotificationType.DataTextField = "NotificationType";
+            dlNotificationType.DataValueField = "NotificationID";
+            dlNotificationType.DataBind();
+            dlNotificationType.Items.Insert(0, new ListItem("--Select--", "-1"));
+
+
+            Flag = "GetTemplate";
+            DataSet dsTemplate = Parameterization.GetEmployeeName("", 0, Flag);
+            //var dt = objDynamic.GetDetails('Team');
+            ddlTemplateView.DataSource = dsTemplate.Tables[0];
+            ddlTemplateView.DataTextField = "TemplateName";
+            ddlTemplateView.DataValueField = "TemplateId";
+            ddlTemplateView.DataBind();
+            ddlTemplateView.Items.Insert(0, new ListItem("--Select--", "-1"));
+
+
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+
+    private void BindVertical()
+    {
+        try
+        {
+
+            // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+            lstVertical.SelectedIndex = -1;
+            DataTable dt = Common.GetVertical();
+            //var dt = objDynamic.GetDetails('Team');
+            lstVertical.DataSource = dt;
+            lstVertical.DataTextField = "Vertical";
+            lstVertical.DataValueField = "Vertical";
+            lstVertical.DataBind();
+            // lstTeamName.Items.Insert(0, new ListItem("--Select--", "-1"));
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+
+    [System.Web.Script.Services.ScriptMethod()]
+    [System.Web.Services.WebMethod]
+    public static List<string> GetSearch(string prefixText)
+    {
+        string Flag = "getEmployeeName";
+        DataSet Result = new DataSet();
+        DataTable dt = new DataTable();
+        HttpContext.Current.Session["hdEmp"] = "";
+      
+        Result = Parameterization.GetEmployeeName(prefixText, 0, Flag);
+        dt = Result.Tables[0];
+
+        //Dictionary<int, string> output = new Dictionary<int, string>();
+        //output.Add(Convert.ToInt32(dt.Rows[0][0]), dt.Rows[0][1].ToString());
+        //HttpContext.Current.Session["hdEmp"] = dt.Rows[0][0];
+        //return output;
+
+
+
+        List<string> Output = new List<string>();
+        if (dt.Rows.Count > 0)
+        {
+            for (int i = 0; i < dt.Rows.Count; i++)
+            //    Output.Add(dt.Rows[i][1].ToString());
+
+            {
+                string item = AjaxControlToolkit.AutoCompleteExtender.CreateAutoCompleteItem(dt.Rows[i][1].ToString(), dt.Rows[i][0].ToString());
+                Output.Add(item);
+            }
+
+
+            //   HttpContext.Current.Session["hdEmp"] = dt.Rows[0][0];
+        }
+        return Output;
+    }
+
+    protected void BindGridview()
+    {
+        //DataTable dt = new DataTable();
+        //DataRow dr = null;
+        //dt.Columns.Add(new DataColumn("rowid", typeof(string)));
+        //dt.Columns.Add(new DataColumn("Column1", typeof(string)));
+        //dt.Columns.Add(new DataColumn("Column2", typeof(string)));
+        //dt.Columns.Add(new DataColumn("Column3", typeof(string)));
+        //dr = dt.NewRow();
+        //dr["rowid"] = 1;
+        //dr["Column1"] = string.Empty;
+        //dr["Column2"] = string.Empty;
+        //dr["Column3"] = string.Empty;
+        //dt.Rows.Add(dr);
+        //ViewState["CurrentTable"] = dt;
+        //gvDetails.DataSource = dt;
+        //gvDetails.DataBind();
+
+
+        //DataTable dt = new DataTable();
+        //dt.Columns.Add("rowid", typeof(int));
+        //dt.Columns.Add("employee", typeof(string));
+        //dt.Columns.Add("vertical", typeof(string));
+        //DataRow dr = dt.NewRow();
+        //dr["rowid"] = 1;
+        //dr["employee"] = string.Empty;
+        //dr["vertical"] = string.Empty;
+        //dt.Rows.Add(dr);
+        //ViewState["Curtbl"] = dt;
+        //gvDetails.DataSource = dt;
+        //gvDetails.DataBind();
+    }
+
+
+    //private void AddNewRow()
+    //{
+    //    int rowIndex = 0;
+
+    //    if (ViewState["Curtbl"] != null)
+    //    {
+    //        DataTable dt = (DataTable)ViewState["Curtbl"];
+    //        DataRow drCurrentRow = null;
+    //        if (dt.Rows.Count > 0)
+    //        {
+    //            for (int i = 1; i <= dt.Rows.Count; i++)
+    //            {
+    //                TextBox txtname = (TextBox)gvDetails.Rows[rowIndex].Cells[0].FindControl("txtName");
+    //                TextBox txtvertical = (TextBox)gvDetails.Rows[rowIndex].Cells[1].FindControl("txtVertical");
+    //                drCurrentRow = dt.NewRow();
+    //                drCurrentRow["rowid"] = i + 1;
+    //                dt.Rows[i - 1]["employee"] = txtname.Text;
+    //                dt.Rows[i - 1]["vertical"] = txtvertical.Text;
+    //                rowIndex++;
+    //            }
+    //            dt.Rows.Add(drCurrentRow);
+    //            ViewState["Curtbl"] = dt;
+    //            gvDetails.DataSource = dt;
+    //            gvDetails.DataBind();
+    //        }
+    //    }
+    //    else
+    //    {
+    //        Response.Write("ViewState Value is Null");
+    //    }
+    //    //SetOldData();
+    //}
+
+    //private void AddNewRowToGrid()
+
+    //{
+    //    int rowIndex = 0;
+    //    if (ViewState["CurrentTable"] != null)
+    //    {
+    //        DataTable dtCurrentTable = (DataTable)ViewState["CurrentTable"];
+    //        DataRow drCurrentRow = null;
+    //        if (dtCurrentTable.Rows.Count > 0)
+    //        {
+    //            for (int i = 1; i <= dtCurrentTable.Rows.Count; i++)
+    //            {
+    //                TextBox box1 = (TextBox)gvDetails.Rows[rowIndex].Cells[1].FindControl("txtName");
+    //                TextBox box2 = (TextBox)gvDetails.Rows[rowIndex].Cells[2].FindControl("txtVertical");
+    //                drCurrentRow = dtCurrentTable.NewRow();
+    //                drCurrentRow["rowid"] = i + 1;
+    //                dtCurrentTable.Rows[i - 1]["Column1"] = box1.Text;
+    //                dtCurrentTable.Rows[i - 1]["Column2"] = box2.Text;
+    //                rowIndex++;
+    //            }
+    //            dtCurrentTable.Rows.Add(drCurrentRow);
+    //            ViewState["CurrentTable"] = dtCurrentTable;
+    //            gvDetails.DataSource = dtCurrentTable;
+    //            gvDetails.DataBind();
+    //        }
+    //    }
+
+    //    else
+
+    //    {
+
+    //        Response.Write("ViewState is null");
+
+    //    }
+
+
+
+    //    //Set Previous Data on Postbacks
+
+    //    ///SetPreviousData();
+
+    //}
+
+    //protected void btnAdd_Click(object sender, EventArgs e)
+    //{
+    //    AddNewRowToGrid();
+    //}
+
+    protected void dlreminder_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        string ddlvalue = dlreminder.SelectedItem.Text;
+        if (ddlvalue == "Monthly")
+        {
+            DivMonthly.Style.Add("display", "block");
+            DivWeekly.Style.Add("display", "none");
+        }
+        else
+        {
+            DivWeekly.Style.Add("display", "block");
+            DivMonthly.Style.Add("display", "none");
+        }
+    }
+
+    protected void btnSubmit_Click(object sender, EventArgs e)
+    {
+        if (ValidateSubmitItem())
+        {
+            try
+            {
+                string gdSelectedItems = string.Empty;
+                // string empname = string.Empty;
+                //  string empID = string.Empty;
+                //  string vertical = string.Empty;
+                string msg = "";
+                int notificationid = Convert.ToInt32(dlNotificationType.SelectedValue);
+                string reminder = dlreminder.SelectedItem.Text;
+                string weeklyday = "";
+                string MonthlyOcurrence = "";
+                string MonthlyDay = "";
+                string lstSelectedItems = "";
+                string chkweekly = "";
+                int templateid = Convert.ToInt32(ddlTemplateView.SelectedValue);
+                string Flag = "InsertDetails";
+                if (reminder == "Weekly")
+                {
+                    MonthlyOcurrence = "";
+                    foreach (ListItem lst in chkWeekly.Items)
+                    {
+                        if (lst.Selected == true)
+                        {
+                            lstSelectedItems = lstSelectedItems + lst.Text + ",";
+                            chkweekly = lstSelectedItems.Remove(lstSelectedItems.LastIndexOf(","));
+                        }
+                    }
+                    Parameterization.InsertParameterizeddata(notificationid, reminder, MonthlyOcurrence, chkweekly, SessionData.CurrentUser.EmployeeId, Flag, templateid);
+                }
+                else
+                {
+                    MonthlyOcurrence = ddlOccurence.SelectedItem.Text;
+                    MonthlyDay = dlMonthlyday.SelectedItem.Text;
+                    Parameterization.InsertParameterizeddata(notificationid, reminder, MonthlyOcurrence, MonthlyDay, SessionData.CurrentUser.EmployeeId, Flag, templateid);
+                }
+
+                foreach (GridViewRow gd in gvDetails.Rows)
+                {
+                    Label empID = (Label)gd.FindControl("lblEmpId");
+                    //   Label empname = (Label)gd.FindControl("");
+                    Label vertical = (Label)gd.FindControl("lblVertical");
+                    //empID = gd.Cells[0].Text;
+                    //empname = gd.Cells[1].Text;
+                    //vertical = gd.Cells[2].Text;
+                    string RecepientType = "CC";
+                    //                    int empid = Convert.ToInt32(HttpContext.Current.Session["hdEmp"]);
+                    Parameterization.InsertEmailRecepient(notificationid, RecepientType, Convert.ToInt32(empID.Text), vertical.Text, SessionData.CurrentUser.EmployeeId, reminder);
+                    DivError.InnerHtml = "";
+                    ScriptManager.RegisterStartupScript(this, this.GetType(), "ShowStatus", "javascript:alert('Data added successfully');", true);
+
+
+                }
+                ///ViewState["Employee"] = null;
+                ///
+                //pnlTemplateView.Visible = false;
+                DivWeekly.Style.Add("display", "block");
+                DivMonthly.Style.Add("display", "none");
+                dlreminder.SelectedIndex = -1;
+                ddlOccurence.SelectedIndex = -1;
+                dlMonthlyday.SelectedIndex = -1;
+                ddlTemplateView.SelectedIndex = -1;
+                dlNotificationType.SelectedIndex = -1;
+                chkWeekly.SelectedIndex = -1;
+                lstVertical.ClearSelection();
+                gvDetails.Visible = false;
+                gvDetails.DataSource = null;
+                gvDetails.DataBind();
+                DivError.InnerHtml = "Data added successfully!!!";
+            }
+            catch (Exception ex)
+            {
+                throw (ex);
+            }
+
+        }
+
+    }
+
+
+    private bool ValidateSubmitItem()
+    {
+        string msg = "";
+        if (dlNotificationType.SelectedItem.Text == "--Select--")
+        {
+            msg += "Please select Notification Type";
+        }
+        if (ddlTemplateView.SelectedValue == "-1")
+        {
+            msg += "<br/>Please select Template Type";
+        }
+
+        if (dlreminder.SelectedItem.Text == "Weekly")
+        {
+            if (chkWeekly.SelectedValue == null || chkWeekly.SelectedValue == "")
+                msg += "<br/>Please select Week Days";
+        }
+        else
+        {
+            if (dlMonthlyday.SelectedValue == "0")
+                msg += "<br/>Please select Month Day";
+
+            if (ddlOccurence.SelectedValue == "0")
+                msg += "<br/>Please select Occurence";
+
+        }
+
+        //if (gvDetails.Rows.Count == 0)
+        //{
+        //    msg += "<br/>Please select Employee and vertical";
+        //}
+
+        if (msg != "")
+        {
+            //ScriptManager.RegisterStartupScript(this, this.GetType(), "ShowStatus", "javascript:alert('Data added successfully');", true);
+            //  ScriptManager.RegisterStartupScript(this, this.GetType(), "ValidationMessage", "javascript:alert('" + msg + "');", true);
+            DivError.InnerHtml = msg;
+            return false;
+        }
+        else
+            DivError.InnerHtml = "";
+        return true;
+    }
+
+    private bool ValidateAddItem()
+    {
+        string msg = "";
+
+
+        //if ((string.IsNullOrEmpty(Session["hdEmp"] as string)) || txtEmployee.Text == "")
+        if ((string.IsNullOrEmpty(hfEmpId.Value as string)) || txtEmployee.Text == "")
+        {
+            msg += "<br/>Please select Employee Name";
+        }
+
+
+
+        if (lstVertical.SelectedIndex == -1 || lstVertical.Items.Count == 0)
+            msg += "<br/>Please Select Vertical";
+
+        if (msg != "")
+        {
+
+            //ScriptManager.RegisterStartupScript(this, this.GetType(), "ShowStatus", "javascript:alert('Data added successfully');", true);
+            DivError.InnerHtml = msg;
+            // ScriptManager.RegisterStartupScript(this, this.GetType(), "ValidationMessage", "javascript:alert('" + msg + "');", true);
+            return false;
+        }
+        return true;
+    }
+
+
+    private void ClearFields()
+    {
+        chkWeekly.SelectedIndex = -1;
+        //ddlTemplateView.SelectedIndex = -1;
+        gvDetails.DataSource = null;
+        gvDetails.DataBind();
+
+    }
+    protected void btnCancel_Click(object sender, EventArgs e)
+    {
+        ClearFields();
+        dlreminder.SelectedIndex = -1;
+        ddlOccurence.SelectedIndex = -1;
+        dlMonthlyday.SelectedIndex = -1;
+        dlNotificationType.SelectedIndex = -1;
+        DivWeekly.Style.Add("display", "block");
+        DivMonthly.Style.Add("display", "none");
+        ddlTemplateView.SelectedIndex = -1;
+    }
+
+    protected void dlNotificationType_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        if (dlNotificationType.SelectedItem.Text != "--Select--")
+        {
+            DivError.InnerHtml = "";
+            ViewState["Employee"] = null;
+            DivWeekly.Style.Add("display", "block");
+            DivMonthly.Style.Add("display", "none");
+            dlreminder.SelectedIndex = -1;
+            ddlOccurence.SelectedIndex = -1;
+            dlMonthlyday.SelectedIndex = -1;
+            ddlTemplateView.SelectedIndex = -1;
+            chkWeekly.SelectedIndex = -1;
+            gvDetails.DataSource = null;
+            gvDetails.DataBind();
+            //ViewState["Employee"] = null;
+            //DataTable dt = new DataTable();
+            // dt.Columns.AddRange(new DataColumn[3] { new DataColumn("EmployeeId"), new DataColumn("EmployeeName"), new DataColumn("Vertical") });
+            //  ViewState["Employee"] = dt;
+            DataSet dsGrid = new DataSet();
+            string Flag = "GetParameterizedDetails";
+            int NotificationValue = Convert.ToInt32(dlNotificationType.SelectedValue);
+            DataSet dsTemplate = new DataSet();
+            dsTemplate = Parameterization.GetNotificationTemplate(NotificationValue, 0);
+            if (NotificationValue == -1)
+                btnActivate.Visible = false;
+            else
+                btnActivate.Visible = true;
+            if (dsTemplate.Tables.Count > 0 && dsTemplate.Tables[0].Rows.Count > 0)
+            {
+                ddlTemplateView.SelectedValue = Convert.ToString(dsTemplate.Tables[0].Rows[0][0]);
+                //  ddlTemplateView.Attributes.Add("disabled", "disabled");
+
+                divSubject.InnerHtml = Convert.ToString(dsTemplate.Tables[0].Rows[0][2]);
+                divMail.InnerHtml = Convert.ToString(dsTemplate.Tables[0].Rows[0][3]);
+
+                if (Convert.ToString(dsTemplate.Tables[0].Rows[0][4]) == "1")
+                    btnActivate.Text = "DeActivate";
+                else
+                    btnActivate.Text = "Activate";
+
+            }
+            else
+            {
+                dsTemplate = Parameterization.GetNotificationTemplate(NotificationValue, -1);
+                if (dsTemplate.Tables.Count > 0 && dsTemplate.Tables[0].Rows.Count > 0)
+                {
+                    if (Convert.ToString(dsTemplate.Tables[0].Rows[0][0]) == "1")
+                        btnActivate.Text = "DeActivate";
+                    else
+                        btnActivate.Text = "Activate";
+                }
+                else
+                    ddlTemplateView.SelectedValue = "-1";
+            }
+            dsGrid = Parameterization.GetEmployeeName("", NotificationValue, Flag);
+
+            if (dsGrid.Tables[0].Rows.Count != 0)
+            {
+                string reminder = Convert.ToString(dsGrid.Tables[0].Rows[0][1]);
+                DataTable dtt = new DataTable();
+                DataView view = new DataView(dsGrid.Tables[0]);
+                DataTable resultTable = view.ToTable(false, "EmployeeId", "EmployeeName", "Vertical");
+                ViewState["Employee"] = resultTable;
+                if (string.IsNullOrEmpty(resultTable.Rows[0][0].ToString()) || string.IsNullOrEmpty(resultTable.Rows[0][1].ToString()) || string.IsNullOrEmpty(resultTable.Rows[0][2].ToString()))
+                {
+                    gvDetails.Visible = false;
+                    ViewState["Employee"] = null;//If employee,vertical is not present for notification id,on add it show on empty row with inserted records 
+                    //gvDetails.DataSource = null;
+                    //gvDetails.DataBind();
+                    //if (string.IsNullOrEmpty(resultTable.Rows[0][0].ToString()) || string.IsNullOrEmpty(resultTable.Rows[0][1].ToString()) || string.IsNullOrEmpty(resultTable.Rows[0][2].ToString()))
+                    //{
+
+                    //}
+                }
+                else
+                {
+                    gvDetails.Visible = true;
+                    gvDetails.DataSource = resultTable;
+                    gvDetails.DataBind();
+                }
+
+                if (reminder == "Weekly")
+                {
+                    DataView dv = new DataView(dsGrid.Tables[0]);
+                    dv.RowFilter = "Reminder ='Weekly'";
+                    dtt = dv.Table;
+                    dlreminder.SelectedIndex = -1;
+                    dlreminder.Items.FindByText(reminder).Selected = true;
+                    DivWeekly.Style.Add("display", "block");
+                    DivMonthly.Style.Add("display", "none");
+
+                    foreach (DataRow row in dtt.Rows)
+                    {
+                        if (row["Monday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Monday").Selected = true;
+                        }
+                        if (row["Tuesday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Tuesday").Selected = true;
+                        }
+                        if (row["Wednesday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Wednesday").Selected = true;
+                        }
+                        if (row["Thursday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Thursday").Selected = true;
+                        }
+                        if (row["Friday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Friday").Selected = true;
+                        }
+                        if (row["Saturday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Saturday").Selected = true;
+                        }
+                        if (row["Sunday"].ToString() == "True")
+                        {
+                            chkWeekly.Items.FindByText("Sunday").Selected = true;
+                        }
+                    }
+                }
+                else
+                {
+                    DataView dv = new DataView(dsGrid.Tables[0]);
+                    dv.RowFilter = "Reminder ='Monthly'";
+                    dtt = dv.Table;
+                    dlreminder.SelectedIndex = -1;
+                    dlreminder.Items.FindByText(reminder).Selected = true;
+                    DivMonthly.Style.Add("display", "block");
+                    DivWeekly.Style.Add("display", "none");
+                    string Occurence = Convert.ToString(dsGrid.Tables[0].Rows[0][2]);
+                    //string Monthday = Convert.ToString(dsGrid.Tables[0].Rows[0][5]);
+                    ddlOccurence.SelectedIndex = -1;
+                    dlMonthlyday.SelectedIndex = -1;
+                    ddlOccurence.Items.FindByText(Occurence).Selected = true;
+                    foreach (DataRow row in dtt.Rows)
+                    {
+                        if (row["Monday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Monday").Selected = true;
+                        }
+                        if (row["Tuesday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Tuesday").Selected = true;
+                        }
+                        if (row["Wednesday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Wednesday").Selected = true;
+                        }
+                        if (row["Thursday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Thursday").Selected = true;
+                        }
+                        if (row["Friday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Friday").Selected = true;
+                        }
+                        if (row["Saturday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Saturday").Selected = true;
+                        }
+                        if (row["Sunday"].ToString() == "True")
+                        {
+                            dlMonthlyday.Items.FindByText("Sunday").Selected = true;
+                        }
+                    }
+
+                }
+            }
+            else
+            {
+                DivWeekly.Style.Add("display", "block");
+                DivMonthly.Style.Add("display", "none");
+                dlreminder.SelectedIndex = -1;
+                ddlOccurence.SelectedIndex = -1;
+                dlMonthlyday.SelectedIndex = -1;
+                //ddlTemplateView.SelectedIndex = -1;
+                chkWeekly.SelectedIndex = -1;
+                gvDetails.Visible = false;
+                gvDetails.DataSource = null;
+                gvDetails.DataBind();
+
+            }
+        }
+        else
+        {
+            //ScriptManager.RegisterStartupScript(this, this.GetType(), "ShowStatus", "javascript:alert('Please select Notification Type');", true);
+            DivWeekly.Style.Add("display", "block");
+            DivMonthly.Style.Add("display", "none");
+            dlreminder.SelectedIndex = -1;
+            ddlOccurence.SelectedIndex = -1;
+            dlMonthlyday.SelectedIndex = -1;
+            ddlTemplateView.SelectedIndex = -1;
+            chkWeekly.SelectedIndex = -1;
+            gvDetails.DataSource = null;
+            gvDetails.DataBind();
+        }
+        // pnlTemplateView.Visible = false;
+        DivError.InnerHtml = "";
+
+    }
+
+    protected void btnActivate_Click(object sender, EventArgs e)
+    {
+
+        //if (btnActivate.Text == "Activate")
+        if (btnActivate.Text == "DeActivate")
+        {
+            btnActivate.Text = "Activate";
+            string Flag = "ActivateNotificationStatus";
+            Parameterization.InsertParameterizeddata(Convert.ToInt32(dlNotificationType.SelectedValue), "", "", "", SessionData.CurrentUser.EmployeeId, Flag, 0);
+            DivError.InnerHtml = "Notification DeActivated!!!";
+            // DivActivateAlert.InnerHtml = "Selected Notification has been Deactivated";
+            //ScriptManager.RegisterStartupScript(this, this.GetType(), "ValidationMessage", "javascript:alert('Selected Notification has been Deactivated');", true);
+            //pnlTemplateView.Visible = false;
+        }
+        else if (btnActivate.Text == "Activate")
+        {
+            btnActivate.Text = "DeActivate";
+            string Flag = "DeActivateNotificationStatus";
+            Parameterization.InsertParameterizeddata(Convert.ToInt32(dlNotificationType.SelectedValue), "", "", "", SessionData.CurrentUser.EmployeeId, Flag, 0);
+            DivError.InnerHtml = "Notification Activated!!!";
+            //DivActivateAlert.InnerHtml = "Selected Notification has been Activated";
+            //ScriptManager.RegisterStartupScript(this, this.GetType(), "ValidationMessage", "javascript:alert('Selected Notification has been activated');", true);
+            // pnlTemplateView.Visible = false;
+
+        }
+    }
+
+    protected void OnRowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        if (e.Row.RowType == DataControlRowType.DataRow)
+        {
+            string item = e.Row.Cells[0].Text;
+            foreach (Button button in e.Row.Cells[2].Controls.OfType<Button>())
+            {
+                if (button.CommandName == "Delete")
+                {
+                    button.Attributes["onclick"] = "if(!confirm('Do you want to delete " + item + "?')){ return false; };";
+                }
+            }
+        }
+    }
+
+    protected void OnRowDeleting(object sender, GridViewDeleteEventArgs e)
+    {
+
+        int index = Convert.ToInt32(e.RowIndex);
+        DataTable dt = ViewState["Employee"] as DataTable;
+        dt.Rows[index].Delete();
+        ViewState["dt"] = dt;
+        BindGrid();
+    }
+
+    protected void btnModalPopup_Click(object sender, EventArgs e)
+    {
+        pnlTemplateView.Visible = true;
+        /*
+        int tempid = Convert.ToInt32(ddlTemplateView.SelectedValue);
+        if (tempid == 1)
+        {
+            ModalPopupExtender1.PopupControlID = "pnlMonthlyReminder1";
+            ModalPopupExtender1.CancelControlID = "pnlCancelPnl1";
+            pnlMonthlyReminder1.Visible = true;
+            pnlMonthlyEscalation1.Visible = false;
+            pnlMonthlyEscalation2.Visible = false;
+            pnlMTrackerSubmittedApproval.Visible = false;
+            pnlMTrackerNotApproved.Visible = false;
+            pnlMTrackerNotSubmittedEsc.Visible = false;
+            pnlMTrackerNotSubmittedEsc2.Visible = false;
+            ModalPopupExtender1.Show();
+        }
+        else if (tempid == 2)
+        {
+            ModalPopupExtender1.PopupControlID = "pnlMonthlyEscalation1";
+            ModalPopupExtender1.CancelControlID = "btnCancelPnl2";
+            pnlMonthlyReminder1.Visible = false;
+            pnlMonthlyEscalation1.Visible = true;
+            pnlMonthlyEscalation2.Visible = false;
+            pnlMTrackerSubmittedApproval.Visible = false;
+            pnlMTrackerNotApproved.Visible = false;
+            pnlMTrackerNotSubmittedEsc.Visible = false;
+            pnlMTrackerNotSubmittedEsc2.Visible = false;
+            ModalPopupExtender1.Show();
+
+        }
+        else if (tempid == 3)
+        {
+            ModalPopupExtender1.PopupControlID = "pnlMonthlyEscalation2";
+            ModalPopupExtender1.CancelControlID = "btnCancelPnl3";
+            pnlMonthlyReminder1.Visible = false;
+            pnlMonthlyEscalation1.Visible = false;
+            pnlMonthlyEscalation2.Visible = true;
+            pnlMTrackerSubmittedApproval.Visible = false;
+            pnlMTrackerNotApproved.Visible = false;
+            pnlMTrackerNotSubmittedEsc.Visible = false;
+            pnlMTrackerNotSubmittedEsc2.Visible = false;
+            ModalPopupExtender1.Show();
+
+        }
+        else if (tempid == 4)
+        {
+            ModalPopupExtender1.PopupControlID = "pnlMTrackerSubmittedApproval";
+            ModalPopupExtender1.CancelControlID = "btnCancelPnl4";
+            pnlMonthlyReminder1.Visible = false;
+            pnlMonthlyEscalation1.Visible = false;
+            pnlMonthlyEscalation2.Visible = false;
+            pnlMTrackerSubmittedApproval.Visible = true;
+            pnlMTrackerNotApproved.Visible = false;
+            pnlMTrackerNotSubmittedEsc.Visible = false;
+            pnlMTrackerNotSubmittedEsc2.Visible = false;
+            ModalPopupExtender1.Show();
+
+        }
+        else if (tempid == 5)
+        {
+            ModalPopupExtender1.PopupControlID = "pnlMTrackerNotApproved";
+            ModalPopupExtender1.CancelControlID = "btnCancelPnl5";
+            pnlMonthlyReminder1.Visible = false;
+            pnlMonthlyEscalation1.Visible = false;
+            pnlMonthlyEscalation2.Visible = false;
+            pnlMTrackerSubmittedApproval.Visible = false;
+            pnlMTrackerNotApproved.Visible = true;
+            pnlMTrackerNotSubmittedEsc.Visible = false;
+            pnlMTrackerNotSubmittedEsc2.Visible = false;
+            ModalPopupExtender1.Show();
+
+        }
+        else if (tempid == 6)
+        {
+            ModalPopupExtender1.PopupControlID = "pnlMTrackerNotSubmittedEsc";
+            ModalPopupExtender1.CancelControlID = "btnCancelPnl6";
+            pnlMonthlyReminder1.Visible = false;
+            pnlMonthlyEscalation1.Visible = false;
+            pnlMonthlyEscalation2.Visible = false;
+            pnlMTrackerSubmittedApproval.Visible = false;
+            pnlMTrackerNotApproved.Visible = false;
+            pnlMTrackerNotSubmittedEsc.Visible = true;
+            pnlMTrackerNotSubmittedEsc2.Visible = false;
+            ModalPopupExtender1.Show();
+
+        }
+        else if (tempid == 7)
+        {
+            ModalPopupExtender1.PopupControlID = "pnlMTrackerNotSubmittedEsc2";
+            ModalPopupExtender1.CancelControlID = "btnCancelPnl7";
+            pnlMonthlyReminder1.Visible = false;
+            pnlMonthlyEscalation1.Visible = false;
+            pnlMonthlyEscalation2.Visible = false;
+            pnlMTrackerSubmittedApproval.Visible = false;
+            pnlMTrackerNotApproved.Visible = false;
+            pnlMTrackerNotSubmittedEsc.Visible = false;
+            pnlMTrackerNotSubmittedEsc2.Visible = true;
+            ModalPopupExtender1.Show();
+
+        }
+        */
+    }
+
+    public override void VerifyRenderingInServerForm(Control control)
+    {
+        /* Confirms that an HtmlForm control is rendered for the specified ASP.NET
+           server control at run time. */
+    }
+    protected void gvDetails_PageIndexChanging(object sender, GridViewPageEventArgs e)
+    {
+        gvDetails.PageIndex = e.NewPageIndex;
+        this.BindGrid();
+    }
+
+
+
+
+    //    protected void btnModalPopup_Click1(object sender, EventArgs e)
+    //    {
+    //        //string Flag = "GetNotificationType";
+    //        // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+    //        //dlNotificationType.SelectedIndex = -1;
+    //        DataSet dsTemplate = new DataSet();
+    //dsTemplate = Parameterization.GetNotificationTemplate(0 , Convert.ToInt32( ddlTemplateView.SelectedValue));
+
+
+    //        if (dsTemplate.Tables.Count > 0 && dsTemplate.Tables[0].Rows.Count > 0)
+    //        {
+
+    //            divSubject.InnerHtml = Convert.ToString(dsTemplate.Tables[0].Rows[0][1]);
+    //            divMail.InnerHtml = Convert.ToString(dsTemplate.Tables[0].Rows[0][2]);
+
+
+    //        }
+
+    //    }
+
+    protected void ddlTemplateView_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        if (Convert.ToInt32(ddlTemplateView.SelectedValue) > 0)
+        {
+            DataSet dsTemplate = new DataSet();
+            dsTemplate = Parameterization.GetNotificationTemplate(0, Convert.ToInt32(ddlTemplateView.SelectedValue));
+
+
+            if (dsTemplate.Tables.Count > 0 && dsTemplate.Tables[0].Rows.Count > 0)
+            {
+
+                divSubject.InnerHtml = Convert.ToString(dsTemplate.Tables[0].Rows[0][1]);
+                divMail.InnerHtml = Convert.ToString(dsTemplate.Tables[0].Rows[0][2]);
+
+
+            }
+        }
+        else
+        {
+            divSubject.InnerHtml = "";
+            divMail.InnerHtml = "";
+        }
+    }
+}
