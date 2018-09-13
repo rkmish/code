@@ -1,0 +1,2987 @@
+ALTER PROCEDURE [dbo].[Proc_GetLocationWiseReport] 
+	-- Add the parameters for the stored procedure here
+	@Flag varchar(100),
+	--@View varchar(100) = null,
+	@Vertical varchar(1000) = null,
+	@FromMonth datetime = null,
+	@ToMonth datetime = null,
+	@EmployeeID varchar(100) = null
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	DECLARE @MonthStartDate varchar(100);
+	declare @ChkVerticalhead bit
+	set @ChkVerticalhead = [dbo].[IsVerticalHead](@EmployeeID)
+	PRINT @ChkVerticalhead
+	declare @CurrentMonth nvarchar(50)
+	declare @PreviousMonth nvarchar(50)
+	Declare @Curr_FiscalYr_StartYear int ,@Curr_FiscalYr_EndYear int   
+
+	Set @Curr_FiscalYr_StartYear = (Select Curr_FiscalYr_StartYear from [udf_GetFinancialYearsFor23MonthsMonthlyTracker] ()) 
+
+	Set @Curr_FiscalYr_EndYear =   (Select Curr_FiscalYr_EndYear   from [udf_GetFinancialYearsFor23MonthsMonthlyTracker] ()) 
+	
+	print @Curr_FiscalYr_StartYear
+	print @Curr_FiscalYr_EndYear
+
+	BEGIN
+		Declare @UserVerticalMap table
+		(			
+			EmployeeID	nvarchar (30),
+			VerticalName	nvarchar(1000)
+		)
+
+		If (@ChkVerticalhead = 0) --for other users
+		Begin			
+			Insert Into @UserVerticalMap
+			Select EmployeeID, VerticalName From TM_UserVerticalMap Where EmployeeID = @EmployeeID
+		End
+
+		If (@ChkVerticalhead = 1) --vertical head users
+		Begin
+			 Insert Into @UserVerticalMap	
+			 Select @EmployeeID EmployeeID, Vertical From dbo.udf_GetVerticalsForVerticalHead(@EmployeeID)
+		End
+
+
+		IF(@Vertical = ''  OR @Vertical = '0')
+		BEGIN
+
+			   SET @Vertical = NULL
+			   print @Vertical
+
+			   SET @FromMonth  = (select DATEADD(MONTH, DATEDIFF(MONTH, 0, GETDATE())-1, 0))   --tO GET LAST MONTH START DATE FROM CURRENT DATE
+			   print @FromMonth
+
+			   SET @ToMonth  =  GETDATE()
+			   print @ToMonth
+
+		END
+	END
+
+	 set @CurrentMonth = datename(month,@ToMonth)
+	 set @PreviousMonth = datename(month,@FromMonth)
+
+	if object_id('tempdb..#tblVrtical') is not null
+			begin
+				drop table #tblVrtical
+			end
+
+			--if object_id('tempdb..#tblMain') is not null
+			--begin
+			--	drop table #tblMain
+			--end
+
+
+			if object_id('tempdb..#temp1') is not null
+			begin
+				drop table #temp1
+			end
+
+			if object_id('tempdb..#temp2') is not null
+			begin
+				drop table #temp2
+			end
+
+			if object_id('tempdb..#Temp_final') is not null
+			begin
+				drop table #Temp_final
+			end
+
+			if object_id('tempdb..#tbllocation') is not null
+			begin
+				drop table #tbllocation
+			end
+
+			if object_id('tempdb..##tempCp') is not null
+			begin
+				drop table ##tempCp
+			end
+
+
+			if object_id('tempdb..#tempGrandTotal') is not null
+			begin
+				drop table #tempGrandTotal
+			end
+
+			if object_id('tempdb..##FinalOutput') is not null
+			begin
+				drop table ##FinalOutput
+			end
+
+
+			if object_id('tempdb..##MainOutput') is not null
+			begin
+				drop table ##MainOutput
+			end
+
+
+			declare @Locationcount int,@verticalcount int,@LocationFlag int ,@VerticalFlag int,@FinalVerticalCount int,@FinalVerticalFlag int
+			declare @Locationname varchar(2000),@LocationId varchar(2000),@verticalname varchar(1000)
+			Declare @DnyColNameforPivot nvarchar(max)='',@DnyColNameforPivot_Sum nvarchar(max)='', @CPName varchar(100),@NPname varchar(100),
+					@sql nvarchar(max)='',@SQLstrs nvarchar(max)='',@sqlmain nvarchar(max)=''
+
+			set @LocationFlag = 1
+
+			create table #tblMain 
+			(
+
+			Vertical varchar(100),
+			Location varchar(100),
+			locationId varchar(100),
+			Cprojection decimal(18,2),
+			CActual decimal(18,2),
+			SubmittedC decimal(18,2),
+			RejectedC decimal(18,2),
+			NProjection decimal(18,2),
+			NActual decimal(18,2),
+			SubmittedN decimal(18,2),
+			RejectedN decimal(18,2),
+			)
+
+
+			create table #tbllocation 
+			(
+			locid int identity(1,1),
+			Location varchar(100)
+			)
+
+
+			create table #tblVrtical (
+			vid  int identity(1,1),
+			verticalname varchar(100)
+			)
+
+			create table ##MainOutput(
+			vertical nvarchar(100),
+			TotalProjection decimal(18,2),
+			TotalActual decimal(18,2)
+
+			)
+
+			Declare @TempLocation table
+			(
+				Location varchar(100),
+			  [ProjectionC] decimal(18,2),
+			  [Actual RealisationC] decimal(18,2),
+			  [SubmittedC] int,
+			  [RejectedC] int,
+			  [ProjectionN] decimal(18,2),
+			  [Actual RealisationN] decimal(18,2),
+			  [SubmittedN] int,
+			  [RejectedN] int,
+			  [Projection Total(C+N)] decimal(18,2),
+			  [Actual Realisation Total(C+N)] decimal(18,2),
+			  [Submitted(C+N)] int,
+			  [Rejected(C+N)] int
+			)
+
+			Declare @TempGrandTotal table
+			(
+				Location varchar(100),
+			  [ProjectionC] decimal(18,2),
+			  [Actual RealisationC] decimal(18,2),
+			   [SubmittedC] int,
+			  [RejectedC] int,
+			  [ProjectionN] decimal(18,2),
+			  [Actual RealisationN] decimal(18,2),
+			  [SubmittedN] int,
+			  [RejectedN] int,
+			  [Projection Total(C+N)] decimal(18,2),
+			  [Actual Realisation Total(C+N)] decimal(18,2),
+			  [Submitted(C+N)] int,
+			  [Rejected(C+N)] int
+			)
+
+
+			-----------------------------------------------------------------
+							select distinct Location,isnull(ProjectedQNS,0) as [ProjectionC], isnull(ActualQNS,0) as [Actual RealisationC],
+                           (select  count(distinct(qns.ProjectID)) 
+						    from projectdetails pd
+							inner join tx_qns qns on qns.projectid = pd.projectid
+							inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+							where qnsac.MonthlyTrackerStatusID =36 
+							and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear  
+							and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+							and ((@Vertical IS NULL ) OR (pd.VerticalName in (select List from [dbo].[fnSplit](@Vertical,','))))
+							--and pdr.verticalName=PD.verticalName
+							) as [SubmittedC],
+                           (select  count(distinct(qns.ProjectID)) from projectdetails pd
+							inner join tx_qns qns on qns.projectid = pd.projectid
+							inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+							where qnsac.MonthlyTrackerStatusID =37
+							and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear  
+							and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+							and ((@Vertical IS NULL ) OR (pd.VerticalName in (select List from [dbo].[fnSplit](@Vertical,','))))
+							--and pdr.verticalName=PD.verticalName
+							) as [RejectedC]
+                           Into #temp1
+                           from tx_qns  TQS
+                           inner join projectdetails PD on PD.Projectid = TQS.Projectid
+                           INNER join @UserVerticalMap u on u.VerticalName=pd.VerticalName and pd.VerticalName is not null
+                           where ((@Vertical IS NULL ) OR (PD.VerticalName in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+                           and PD.Location is not null 
+                           and TQS.BenefitTypeId = 2 and PD.DateCreated between @FromMonth and @ToMonth
+                           and u.EmployeeID  = @EmployeeID
+                                            
+
+							select  distinct Location,isnull(ProjectedQNS,0) as [ProjectionN],isnull(ActualQNS,0) as [Actual RealisationN],
+                           (select  count(distinct(qns.ProjectID)) from projectdetails pd
+							inner join tx_qns qns on qns.projectid = pd.projectid
+							inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+							where qnsac.MonthlyTrackerStatusID =36
+							and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear  
+							and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+							and ((@Vertical IS NULL ) OR (PD.VerticalName in (select List from [dbo].[fnSplit](@Vertical,','))))
+							--and pdr.verticalName=PD.verticalName
+							) as [SubmittedN],
+                           (select  count(distinct(qns.ProjectID)) from projectdetails pdr
+							inner join tx_qns qns on qns.projectid = pd.projectid
+							inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+							where qnsac.MonthlyTrackerStatusID =37
+							and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear  
+							and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+							and ((@Vertical IS NULL ) OR (pd.VerticalName in (select List from [dbo].[fnSplit](@Vertical,','))))
+							--and pdr.verticalName=PD.verticalName
+							) as [RejectedN]
+                            Into #temp2
+                           from tx_qns  TQS
+                           inner join projectdetails PD on PD.Projectid = TQS.Projectid
+                           INNER join @UserVerticalMap u  on u.VerticalName=pd.VerticalName and pd.VerticalName is not null
+                           where ((@Vertical IS NULL ) OR (PD.VerticalName in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+                           and PD.Location is not null 
+                           and TQS.BenefitTypeId = 3 and PD.DateCreated between @FromMonth and @ToMonth
+                           and u.EmployeeID  = @EmployeeID
+
+                                  
+
+							create table #Temp_final
+							(
+							Location nvarchar(1000),
+							ProjectionC decimal(18,2),
+							[Actual RealisationC]   decimal(18,2),
+							[SubmittedC] int,
+							[RejectedC] int,
+							ProjectionN decimal(18,2),
+							[Actual RealisationN]  decimal(18,2),
+							[SubmittedN]  int,
+							[RejectedN]  int,
+							[Projection Total(C+N)] decimal(18,2),
+							[Actual Realisation Total(C+N)] decimal(18,2),
+							[Submitted(C+N)] int,
+							[Rejected(C+N)] int)
+
+
+											
+
+
+
+							insert into #Temp_final (Location)
+							select distinct Location from (
+							select   Location    from #Temp1
+							union    
+							select   Location    from #Temp2 ) as Data
+
+
+							update  f
+							set f.ProjectionC = t.SumProjectionC
+							from #Temp_final F
+
+							inner join ( select Location , sum([ProjectionC])  SumProjectionC
+							from #temp1 Group by Location 
+							) t on  F.Location = t. location 
+                                         
+							update  f
+							set f.[Actual RealisationC] = t.SumActualRealisationC
+							from #Temp_final F
+
+							inner join ( select Location , sum([Actual RealisationC])  SumActualRealisationC
+							from #temp1 Group by Location 
+							) t on  F.Location = t. location 
+                                         
+							update  f
+							set f.[SubmittedC] = t.SumSubmittedC
+							from #Temp_final F
+
+							inner join ( select Location , [SubmittedC]  SumSubmittedC
+							from #temp1 Group by Location,[SubmittedC] 
+							) t on  F.Location = t. location 
+
+							update  f
+							set f.[RejectedC] = t.SumRejectedC
+							from #Temp_final F
+
+							inner join ( select Location , [RejectedC]  SumRejectedC
+							from #temp1 Group by Location,[RejectedC] 
+							) t on  F.Location = t. location 
+
+                                                
+
+
+
+							update  f
+							set f.ProjectionN = t.SumProjectionN
+							from #Temp_final F
+
+							inner join ( select Location , sum(ProjectionN)  SumProjectionN
+							from #temp2 Group by Location 
+							) t on  F.Location = t. location 
+
+							update  f
+							set f.[Actual RealisationN] = t.SumRealisationN
+							from #Temp_final F
+
+							inner join ( select Location , sum([Actual RealisationN])  SumRealisationN
+							from #temp2 Group by Location 
+							) t on  F.Location = t. location 
+
+							update  f
+							set f.[SubmittedN]  = t.SumSubmittedN
+							from #Temp_final F
+
+							inner join ( select Location , [SubmittedN]  SumSubmittedN 
+							from #temp2 Group by Location,[SubmittedN] 
+							) t on  F.Location = t. location 
+
+							update  f
+							set f.[RejectedN] = t.SumRejectedN
+							from #Temp_final F
+
+							inner join ( select Location ,[RejectedN]  SumRejectedN
+							from #temp2 Group by Location,[RejectedN]  
+							) t on  F.Location = t. location 
+
+
+	--------------------------------------------------------------------------------------------------
+
+
+
+
+	Declare @SumvariableProjections nvarchar(1000)='',@SumVariableActuals nvarchar(1000)='',@SumvariableSubmitted nvarchar(1000)='',@SumVariableRejected nvarchar(1000)=''
+
+	SET NOCOUNT ON;
+	IF(@Flag = 'Vertical Wise')
+	BEGIN
+			
+	-----------------------------------------first grid query --------------------------------------------			
+                                         
+
+			
+	select 1 as ID ,Location,ProjectionC,[Actual RealisationC],[SubmittedC],[RejectedC],ProjectionN,[Actual RealisationN],[SubmittedN],[RejectedN],sum(isnull([ProjectionC],0) + isnull([ProjectionN],0)) as [Projection Total(C+N)],sum(isnull([Actual RealisationC],0) + isnull([Actual RealisationN],0)) as [Actual Realisation Total(C+N)],sum(isnull([SubmittedC],0) + isnull([SubmittedN],0)) as [Submitted(C+N)],sum(isnull([RejectedC],0) + isnull([RejectedN],0)) as [Rejected(C+N)] from #temp_final
+	Group by Location,ProjectionC,[Actual RealisationC],[SubmittedC],[RejectedC],ProjectionN,[Actual RealisationN],[SubmittedN],[RejectedN]
+	Union 
+	select 2 as ID , 'Grand Total' as Location ,SUM( ProjectionC) ,SUM([Actual RealisationC]),SUM([SubmittedC]),SUM([RejectedC]),SUM(ProjectionN),SUM([Actual RealisationN]),SUM([SubmittedN]),SUM([RejectedN]),sum(isnull([ProjectionC],0) + isnull([ProjectionN],0)) as [Projection Total(C+N)],sum(isnull([Actual RealisationC],0) + isnull([Actual RealisationN],0)) as [Actual Realisation Total(C+N)],sum(isnull([SubmittedC],0) + isnull([SubmittedN],0)) as [Submitted(C+N)],sum(isnull([RejectedC],0) + isnull([RejectedN],0)) as [Rejected(C+N)]
+	from #temp_final
+												
+												
+---------------------------second grid data query ------------------------------------------------------
+
+			insert into #tbllocation
+			select  distinct Location from projectdetails pd
+			inner join tx_qns TQS on TQS.ProjectID = pd.ProjectID
+			INNER join @UserVerticalMap u  on u.VerticalName=pd.VerticalName and pd.VerticalName is not null
+			where ((@Vertical IS NULL ) OR (PD.VerticalName in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+				and PD.Location is not null 
+				and TQS.BenefitTypeId in (2,3) and PD.DateCreated between @FromMonth and @ToMonth
+				and u.EmployeeID  = @EmployeeID
+			--where u.EmployeeID = @EmployeeID and Location is not null
+
+			--select * from #tbllocation
+
+			select @Locationcount =  count(Location) from  #tbllocation
+			--print @Locationcount
+
+			while (@LocationFlag <= @Locationcount)
+			begin 
+
+        
+				select @Locationname = location from #tbllocation where locid = @LocationFlag
+					--print @Locationname
+				Select @LocationId=locid from #tbllocation where locid = @LocationFlag
+
+				insert into #tblVrtical
+				select  pd.verticalname  from  projectdetails pd 
+				inner join tx_qns TQS on TQS.ProjectID = pd.ProjectID
+				INNER join @UserVerticalMap u  on u.VerticalName=pd.VerticalName and pd.VerticalName is not null
+				where
+				 TQS.BenefitTypeId in (2,3) and PD.DateCreated between @FromMonth and @ToMonth
+				and u.EmployeeID  = @EmployeeID  and
+				location = @Locationname
+
+				--select * from #tblVrtical
+
+			   select @verticalcount =  count(verticalname) from  #tblVrtical
+			   --print @verticalcount
+				set @VerticalFlag = 1
+			   --print 'vertical flag while'
+			   --print @VerticalFlag
+                while(@VerticalFlag <= @verticalcount)
+
+				   begin
+				   --print 'vertical flag'
+				  -- print @VerticalFlag
+						  select @verticalname = verticalname from #tblVrtical where vid = @VerticalFlag
+						 -- print @verticalname
+						 ---
+              
+							 insert into #tblMain
+										   select distinct pd.verticalname,pd.location,(Select locid from #tbllocation where location=@Locationname) [locationId],
+										   case
+										   when BenefitTypeId = 2 then isnull(ProjectedQNS,0.00) else null
+										   end as [ProjectionC],
+										   case
+										   when BenefitTypeId = 2 then isnull(ActualQNS,0.00) else null
+										   end as [Actual RealisationC],
+										   case
+										   when BenefitTypeId = 2   then (select  count(distinct(qns.ProjectID)) from projectdetails pd
+																										inner join tx_qns qns on qns.projectid = pd.projectid
+																										inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+																										where qnsac.MonthlyTrackerStatusID =36
+																										and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear 
+																										and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+																										and ((@Vertical IS NULL ) OR (pd.VerticalName in (select List from [dbo].[fnSplit](@Vertical,','))))
+																										--and pdr.verticalName=PD.verticalName
+																										)  else null
+										   end as [SubmittedC],
+										   case
+										   when BenefitTypeId = 2  then (select  count(distinct(qns.ProjectID)) from projectdetails pd
+																										inner join tx_qns qns on qns.projectid = pd.projectid
+																										inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+																										where qnsac.MonthlyTrackerStatusID =37
+																										and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear 
+																										and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+																										and ((@Vertical IS NULL ) OR (pd.VerticalName in (select List from [dbo].[fnSplit](@Vertical,','))))
+																										--and pdr.verticalName=PD.verticalName
+																										) else null
+										   end as [RejectedC],
+										   case
+										   when BenefitTypeId = 3 then isnull(ProjectedQNS,0.00) else null
+										   end as [ProjectionN],
+										   case
+										   when BenefitTypeId = 3 then isnull(ActualQNS,0.00) else null
+										   end as [Actual RealisationN],
+										   case
+										   when BenefitTypeId = 3  then (select  count(distinct(qns.ProjectID)) from projectdetails pd
+																										inner join tx_qns qns on qns.projectid = pd.projectid
+																										inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+																										where qnsac.MonthlyTrackerStatusID =36
+																										and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear 
+																										and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+																										and ((@Vertical IS NULL ) OR (pd.VerticalName in (select List from [dbo].[fnSplit](@Vertical,','))))
+																										--and pdr.verticalName=PD.verticalName
+																										) else null
+										   end as [SubmittedN],
+										   case
+										   when BenefitTypeId = 3  then (select  count(distinct(qns.ProjectID)) from projectdetails pd
+																										inner join tx_qns qns on qns.projectid = pd.projectid
+																										inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+																										where qnsac.MonthlyTrackerStatusID =37
+																										and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear 
+																										and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+																										and ((@Vertical IS NULL ) OR (pd.VerticalName in (select List from [dbo].[fnSplit](@Vertical,','))))
+																										--and pdr.verticalName=PD.verticalName
+																										) else null
+										   end as [RejectedN]
+										  
+										   from tx_qns  TQS
+										   inner join projectdetails PD on PD.Projectid = TQS.Projectid
+										   INNER join @UserVerticalMap u  on u.VerticalName=PD.VerticalName and PD.VerticalName is not null
+										   where u.EmployeeID = @EmployeeID and BenefitTypeId in(2,3)
+												  and  PD.Location = @Locationname and PD.VerticalName=@verticalname
+												  and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+										   group by pd.verticalname,pd.location,BenefitTypeId ,PD.ProjStatusID,TQS.ProjectedQNS,TQS.ActualQNS
+                           --select * from #tblMain
+							
+							set @VerticalFlag = @VerticalFlag + 1
+
+					end
+					
+					
+
+				 set @DnyColNameforPivot=isnull(@DnyColNameforPivot,'')
+											  +'CP'+cast(lower(@LocationId) as varchar(max)) --@Locationname
+											  +',CA'+cast(lower(@LocationId) as varchar(max)) --@Locationname
+											  +',CS'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',CR'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',NP'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',NA'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',NS'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',NR'+cast(lower(@LocationId) as varchar(max)) +',' --@Locationname
+     
+				 set @DnyColNameforPivot_Sum=isnull(@DnyColNameforPivot_Sum,'')
+											  +'Sum(CP'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(CA'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(CS'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(CR'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(NP'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(NA'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(NS'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(NR'+cast(lower(@LocationId) as varchar(max))+'),'		--@Locationname
+       
+      
+			set @LocationFlag = @LocationFlag +1
+			end
+
+			--select * from  #tblMain
+			--select * into ##tblmain2 from #tblMain
+			print '1'
+			set @DnyColNameforPivot=LEFT(@DnyColNameforPivot, LEN(@DnyColNameforPivot) - 1)
+			set @DnyColNameforPivot_Sum=LEFT(@DnyColNameforPivot_Sum, LEN(@DnyColNameforPivot_Sum) - 1)
+			print  @DnyColNameforPivot
+			print @DnyColNameforPivot_Sum
+			--select @DnyColNameforPivot
+			--select @DnyColNameforPivot_Sum
+			--print Convert(nvarchar(max),@DnyColNameforPivot)
+
+			--print Convert(nvarchar(max),@DnyColNameforPivot_Sum)
+    
+
+
+				--select Vertical,
+				--	case 
+				--	  when col = 'Cprojection' then 'CP'
+				--	  when col = 'CActual' then 'CA'
+				--	  when col = 'SubmittedC' then 'CS'
+				--	  when col = 'RejectedC' then 'CR'
+				--	  when col = 'NProjection' then 'NP'
+				--	  when col = 'NActual' then 'NA'
+				--	  when col = 'SubmittedN' then 'NS'
+				--	  when col = 'RejectedN' then 'NR'
+				--	end + cast(lower(location) as varchar(max)) new_col,
+				--	value
+				--  from #tblMain
+
+
+
+
+			set @sql='
+
+				IF OBJECT_ID(''tempdb..##TempPivot'') IS NOT NULL
+				  DROP TABLE ##TempPivot
+
+
+
+				select * into ##TempPivot
+				from
+				(
+				  select Vertical,
+					case 
+					  when col = ''Cprojection'' then ''CP''
+					  when col = ''CActual'' then ''CA''
+					  when col = ''SubmittedC'' then ''CS''
+					  when col = ''RejectedC'' then ''CR''
+					  when col = ''NProjection'' then ''NP''
+					  when col = ''NActual'' then ''NA''
+					  when col = ''SubmittedN'' then ''NS''
+					  when col = ''RejectedN'' then ''NR''
+					end + cast(lower(locationId)  as varchar(max)) new_col, --location
+					value
+				  from #tblMain
+				  unpivot
+				  (
+					value
+					for col in ([Cprojection], [CActual],[SubmittedC],[RejectedC],[NProjection], [NActual],[SubmittedN],[RejectedN])
+				  ) unpiv
+				) src
+				pivot
+				(
+				  max(value)
+				  --for new_col in (CPbang,CAbang,NPbang,NAbang,
+				  --                CPgerm,CAgerm,NPgerm,NAgerm)
+				  for new_col in ('+@DnyColNameforPivot+')
+				) piv;
+				
+				
+				--select * into ##tblmain2 from ##TempPivot
+				
+				'
+
+
+
+			print @sql
+			EXEC sp_executesql @sql
+
+
+			set @SQLstrs='select * into ##FinalOutput from (select vertical,'+@DnyColNameforPivot+' 
+						  from ##TempPivot 
+						  Union ALL'+ +' Select '+
+						  '''Grand Total'''+'As Vertical,'+@DnyColNameforPivot_Sum+'from ##TempPivot) as F1
+						  
+						  --select * from ##FinalOutput
+						  
+						  '
+
+			
+			--print @SQLstrs
+
+			EXEC sp_executesql @SQLstrs
+
+			
+			--sum of projection ----
+
+			print @DnyColNameforPivot
+
+			SELECT @SumvariableProjections= coalesce(@SumvariableProjections + ' + ', '') + 'Sum(isnull('+List + ',0.00))' 
+			From [dbo].[fnSplit](@DnyColNameforPivot ,',') where list like 'CP%' or list like 'NP%' 
+			--list like 'CP%' or list like 'NP%' 
+			--list like '%\[CP%' ESCAPE '\'  or list like '%\[NP%' ESCAPE '\'
+			--or list like 'CS%' or list like 'CR%' or list like 'NS%' or list like 'NR%'
+
+			print @SumvariableProjections
+
+			set @SumvariableProjections=RIGHT(@SumvariableProjections, LEN(@SumvariableProjections) - 2)
+
+			--select @SumvariableProjections
+
+			--Sum of actuals----
+			SELECT @SumVariableActuals= coalesce(@SumVariableActuals + ' + ', '') + 'Sum(isnull('+List + ',0.00))' 
+			From [dbo].[fnSplit](@DnyColNameforPivot ,',') where list like 'CA%' or list like 'NA%' 
+			--list like 'CA%' or list like 'NA%' 
+
+
+			set @SumVariableActuals=RIGHT(@SumVariableActuals, LEN(@SumVariableActuals) - 2)
+
+			--Sum of submitted ----
+			SELECT @SumvariableSubmitted= coalesce(@SumvariableSubmitted + ' + ', '') + 'Sum(isnull('+List + ',0.00))' 
+			From [dbo].[fnSplit](@DnyColNameforPivot ,',') where list like 'CS%' or list like 'NS%' 
+			--list like 'CS%' or list like 'NS%' 
+
+
+			set @SumvariableSubmitted=RIGHT(@SumvariableSubmitted, LEN(@SumvariableSubmitted) - 2)
+
+			--select @SumvariableSubmitted
+
+			---Sum of Rejected-----
+
+			SELECT @SumVariableRejected= coalesce(@SumVariableRejected + ' + ', '') + 'Sum(isnull('+List + ',0.00))' 
+			From [dbo].[fnSplit](@DnyColNameforPivot ,',') where list like 'CR%' or list like 'NR%' 
+			--list like 'CR%' or list like 'NR%' 
+
+
+			set @SumVariableRejected=RIGHT(@SumVariableRejected, LEN(@SumVariableRejected) - 2)
+
+			--select @SumVariableRejected
+
+			--select @SumVariableActuals
+
+
+			--select * from ##FinalOutput
+
+			set @sqlmain='select FOU.Vertical,
+			(Select '+@SumvariableProjections+' from ##FinalOutput Where Vertical=FOU.vertical)as [TotalProjection],
+			(Select '+@SumVariableActuals+' from ##FinalOutput Where Vertical=FOU.vertical)as [TotalActuals],
+			(Select '+@SumvariableSubmitted+' from ##FinalOutput Where Vertical=FOU.vertical)as [TotalSubmitted],
+			(Select '+@SumVariableRejected+' from ##FinalOutput Where Vertical=FOU.vertical)as [TotalRejected],
+			'+@DnyColNameforPivot +' from ##FinalOutput FOU
+			left join ##MainOutput MOU on MOU.Vertical = FOU.Vertical 
+			--left join  #tblVrtical TV on TV.Vertical = FOU.Vertical
+			'
+
+			--select @DnyColNameforPivot
+
+			--Select sum(Isnull(CPbang,0)) + sum(NPgerm) as [Test] from ##FinalOutput Where Vertical='Autoclaims'
+
+			--print @sqlmain
+			--print @sqlmain
+			EXEC sp_executesql @sqlmain
+
+
+			if object_id('tempdb..##FinalOutput') is not null
+			begin
+				drop table ##FinalOutput
+			end
+		END
+	ELSE IF(@Flag = 'BU wise')
+	BEGIN
+	PRINT 'HI'
+			
+			--select 'Grand Total',sum(isnull(C1.[ProjectionC],0)) as [ProjectionC],0,0,0,0,0 from 
+			--------------first grid query-----------------------
+
+
+			select 2 as ID , 'Grand total' as Location ,SUM(ProjectionC) as ProjectionC ,SUM([Actual RealisationC]) as [Actual RealisationC],SUM([SubmittedC]) as  SubmittedC,SUM([RejectedC]) as RejectedC,SUM(ProjectionN) as ProjectionN,SUM([Actual RealisationN]) as [Actual RealisationN],SUM([SubmittedN]) as SubmittedN,SUM([RejectedN]) as RejectedN,sum(isnull([ProjectionC],0) + isnull([ProjectionN],0)) as [Projection Total(C+N)],sum(isnull([Actual RealisationC],0) + isnull([Actual RealisationN],0)) as [Actual Realisation Total(C+N)],sum(isnull([SubmittedC],0) + isnull([SubmittedN],0)) as [Submitted(C+N)],sum(isnull([RejectedC],0) + isnull([RejectedN],0)) as [Rejected(C+N)]
+							from #temp_final
+
+
+
+			-----------------------------second grid query -------------------
+
+			insert into #tbllocation
+			select  distinct Location from projectdetails pd
+			inner join tx_qns TQS on TQS.ProjectID = pd.ProjectID
+			INNER join @UserVerticalMap u  on u.VerticalName=pd.VerticalName and pd.VerticalName is not null
+			where ((@Vertical IS NULL ) OR (PD.VerticalName in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+				and PD.Location is not null 
+				and TQS.BenefitTypeId in (2,3) and PD.DateCreated between @FromMonth and @ToMonth
+				and u.EmployeeID  = @EmployeeID
+			--where u.EmployeeID = @EmployeeID and Location is not null
+
+			--select * from #tbllocation
+
+			select @Locationcount =  count(Location) from  #tbllocation
+			--print @Locationcount
+
+			while (@LocationFlag <= @Locationcount)
+			begin 
+
+        
+				select @Locationname = location from #tbllocation where locid = @LocationFlag
+					--print @Locationname
+				Select @LocationId=locid from #tbllocation where locid = @LocationFlag
+
+				insert into #tblVrtical
+				select  verticalname  from  projectdetails where --Projectid in (11051,11050,11005,10999) and 
+				location = @Locationname
+
+				--select * from #tblVrtical
+
+			   select @verticalcount =  count(verticalname) from  #tblVrtical
+			   --print @verticalcount
+				set @VerticalFlag = 1
+			   --print 'vertical flag while'
+			   --print @VerticalFlag
+                while(@VerticalFlag <= @verticalcount)
+
+				   begin
+				   --print 'vertical flag'
+				  -- print @VerticalFlag
+						  select @verticalname = verticalname from #tblVrtical where vid = @VerticalFlag
+						 -- print @verticalname
+						 ---
+              
+							
+						   insert into #tblMain
+										   select distinct pd.verticalname,pd.location,(Select locid from #tbllocation where location=@Locationname) [locationId],
+										   case
+										   when BenefitTypeId = 2 then isnull(ProjectedQNS,0.00) else null
+										   end as [ProjectionC],
+										   case
+										   when BenefitTypeId = 2 then isnull(ActualQNS,0.00) else null
+										   end as [Actual RealisationC],
+										   case
+										   when BenefitTypeId = 2   then (select  count(distinct(qns.ProjectID)) from projectdetails pd
+																										inner join tx_qns qns on qns.projectid = pd.projectid
+																										inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+																										where qnsac.MonthlyTrackerStatusID =36
+																										and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear 
+																										and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+																										and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+																										--and pdr.verticalName=PD.verticalName
+																										)  else null
+										   end as [SubmittedC],
+										   case
+										   when BenefitTypeId = 2  then (select  count(distinct(qns.ProjectID)) from projectdetails pd
+																										inner join tx_qns qns on qns.projectid = pd.projectid
+																										inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+																										where qnsac.MonthlyTrackerStatusID =37
+																										and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear 
+																										and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+																										and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+																										--and pdr.verticalName=PD.verticalName
+																										) else null
+										   end as [RejectedC],
+										   case
+										   when BenefitTypeId = 3 then isnull(ProjectedQNS,0.00) else null
+										   end as [ProjectionN],
+										   case
+										   when BenefitTypeId = 3 then isnull(ActualQNS,0.00) else null
+										   end as [Actual RealisationN],
+										   case
+										   when BenefitTypeId = 3  then (select  count(distinct(qns.ProjectID)) from projectdetails pd
+																										inner join tx_qns qns on qns.projectid = pd.projectid
+																										inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+																										where qnsac.MonthlyTrackerStatusID =36
+																										and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear 
+																										and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+																										and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+																										--and pdr.verticalName=PD.verticalName
+																										) else null
+										   end as [SubmittedN],
+										   case
+										   when BenefitTypeId = 3  then (select  count(distinct(qns.ProjectID)) from projectdetails pd
+																										inner join tx_qns qns on qns.projectid = pd.projectid
+																										inner join TX_QNSActualsDetails qnsac on qnsac.QNSId = qns.qnsid
+																										where qnsac.MonthlyTrackerStatusID =37
+																										and qnsac.FinancialStartYear=@Curr_FiscalYr_StartYear 
+																										and CONVERT(date,DATEADD(month,MONTH(CAST(qnsac.[month] + '1 2018' AS datetime))-1,DATEADD(year,convert(int,case when qnsac.QNSYear<>0 then qnsac.QNSYear else 1900 end)-1900,0))) between @FromMonth and @ToMonth 
+																										and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+																										--and pdr.verticalName=PD.verticalName
+																										) else null
+										   end as [RejectedN]
+										  
+										   from tx_qns  TQS
+										   inner join projectdetails PD on PD.Projectid = TQS.Projectid
+										   INNER join @UserVerticalMap u  on u.VerticalName=PD.VerticalName and PD.VerticalName is not null
+										   where u.EmployeeID = @EmployeeID and BenefitTypeId in(2,3)
+												  and  PD.Location = @Locationname and PD.VerticalName=@verticalname
+												  and ((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+										   group by pd.verticalname,pd.location,BenefitTypeId ,PD.ProjStatusID,TQS.ProjectedQNS,TQS.ActualQNS
+							
+							set @VerticalFlag = @VerticalFlag + 1
+
+					end
+					
+					
+
+				 set @DnyColNameforPivot=isnull(@DnyColNameforPivot,'')
+											  +'CP'+cast(lower(@LocationId) as varchar(max)) --@Locationname
+											  +',CA'+cast(lower(@LocationId) as varchar(max)) --@Locationname
+											  +',CS'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',CR'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',NP'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',NA'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',NS'+cast(lower(@LocationId) as varchar(max))		 --@Locationname
+											  +',NR'+cast(lower(@LocationId) as varchar(max)) +',' --@Locationname
+     
+				 set @DnyColNameforPivot_Sum=isnull(@DnyColNameforPivot_Sum,'')
+											  +'Sum(CP'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(CA'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(CS'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(CR'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(NP'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(NA'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(NS'+cast(lower(@LocationId) as varchar(max))+')'			--@Locationname
+											  +',Sum(NR'+cast(lower(@LocationId) as varchar(max))+'),'		--@Locationname
+       
+      
+			set @LocationFlag = @LocationFlag +1
+			end
+
+			--select * from  #tblMain
+			--select * into ##tblmain2 from #tblMain
+
+			set @DnyColNameforPivot=LEFT(@DnyColNameforPivot, LEN(@DnyColNameforPivot) - 1)
+			set @DnyColNameforPivot_Sum=LEFT(@DnyColNameforPivot_Sum, LEN(@DnyColNameforPivot_Sum) - 1)
+			print  @DnyColNameforPivot
+			print @DnyColNameforPivot_Sum
+			--select @DnyColNameforPivot
+			--select @DnyColNameforPivot_Sum
+			--print Convert(nvarchar(max),@DnyColNameforPivot)
+
+			--print Convert(nvarchar(max),@DnyColNameforPivot_Sum)
+    
+
+
+				--select Vertical,
+				--	case 
+				--	  when col = 'Cprojection' then 'CP'
+				--	  when col = 'CActual' then 'CA'
+				--	  when col = 'SubmittedC' then 'CS'
+				--	  when col = 'RejectedC' then 'CR'
+				--	  when col = 'NProjection' then 'NP'
+				--	  when col = 'NActual' then 'NA'
+				--	  when col = 'SubmittedN' then 'NS'
+				--	  when col = 'RejectedN' then 'NR'
+				--	end + cast(lower(location) as varchar(max)) new_col,
+				--	value
+				--  from #tblMain
+
+
+
+
+			set @sql='
+
+				IF OBJECT_ID(''tempdb..##TempPivot'') IS NOT NULL
+				  DROP TABLE ##TempPivot
+
+
+
+				select * into ##TempPivot
+				from
+				(
+				  select Vertical,
+					case 
+					  when col = ''Cprojection'' then ''CP''
+					  when col = ''CActual'' then ''CA''
+					  when col = ''SubmittedC'' then ''CS''
+					  when col = ''RejectedC'' then ''CR''
+					  when col = ''NProjection'' then ''NP''
+					  when col = ''NActual'' then ''NA''
+					  when col = ''SubmittedN'' then ''NS''
+					  when col = ''RejectedN'' then ''NR''
+					end + cast(lower(locationId)  as varchar(max)) new_col, --location
+					value
+				  from #tblMain
+				  unpivot
+				  (
+					value
+					for col in ([Cprojection], [CActual],[SubmittedC],[RejectedC],[NProjection], [NActual],[SubmittedN],[RejectedN])
+				  ) unpiv
+				) src
+				pivot
+				(
+				  max(value)
+				  --for new_col in (CPbang,CAbang,NPbang,NAbang,
+				  --                CPgerm,CAgerm,NPgerm,NAgerm)
+				  for new_col in ('+@DnyColNameforPivot+')
+				) piv;
+				
+				
+				--select * into ##tblmain2 from ##TempPivot
+				
+				'
+
+
+
+			print @sql
+			EXEC sp_executesql @sql
+
+
+			set @SQLstrs='select * into ##FinalOutput from (select vertical,'+@DnyColNameforPivot+' 
+						  from ##TempPivot 
+						  Union ALL'+ +' Select '+
+						  '''Grand Total'''+'As Vertical,'+@DnyColNameforPivot_Sum+'from ##TempPivot) as F1
+						  
+						  --select * from ##FinalOutput
+						  
+						  '
+
+			
+			--print @SQLstrs
+
+			EXEC sp_executesql @SQLstrs
+
+			
+			--sum of projection ----
+
+			print @DnyColNameforPivot
+
+			SELECT @SumvariableProjections= coalesce(@SumvariableProjections + ' + ', '') + 'Sum(isnull('+List + ',0.00))' 
+			From [dbo].[fnSplit](@DnyColNameforPivot ,',') where list like 'CP%' or list like 'NP%' 
+			--list like 'CP%' or list like 'NP%' 
+			--list like '%\[CP%' ESCAPE '\'  or list like '%\[NP%' ESCAPE '\'
+			--or list like 'CS%' or list like 'CR%' or list like 'NS%' or list like 'NR%'
+
+			print @SumvariableProjections
+
+			set @SumvariableProjections=RIGHT(@SumvariableProjections, LEN(@SumvariableProjections) - 2)
+
+			--select @SumvariableProjections
+
+			--Sum of actuals----
+			SELECT @SumVariableActuals= coalesce(@SumVariableActuals + ' + ', '') + 'Sum(isnull('+List + ',0.00))' 
+			From [dbo].[fnSplit](@DnyColNameforPivot ,',') where list like 'CA%' or list like 'NA%' 
+			--list like 'CA%' or list like 'NA%' 
+
+
+			set @SumVariableActuals=RIGHT(@SumVariableActuals, LEN(@SumVariableActuals) - 2)
+
+			--Sum of submitted ----
+			SELECT @SumvariableSubmitted= coalesce(@SumvariableSubmitted + ' + ', '') + 'Sum(isnull('+List + ',0.00))' 
+			From [dbo].[fnSplit](@DnyColNameforPivot ,',') where list like 'CS%' or list like 'NS%' 
+			--list like 'CS%' or list like 'NS%' 
+
+
+			set @SumvariableSubmitted=RIGHT(@SumvariableSubmitted, LEN(@SumvariableSubmitted) - 2)
+
+			--select @SumvariableSubmitted
+
+			---Sum of Rejected-----
+
+			SELECT @SumVariableRejected= coalesce(@SumVariableRejected + ' + ', '') + 'Sum(isnull('+List + ',0.00))' 
+			From [dbo].[fnSplit](@DnyColNameforPivot ,',') where list like 'CR%' or list like 'NR%' 
+			--list like 'CR%' or list like 'NR%' 
+
+
+			set @SumVariableRejected=RIGHT(@SumVariableRejected, LEN(@SumVariableRejected) - 2)
+
+			--select @SumVariableRejected
+
+			--select @SumVariableActuals
+
+
+			--select * from ##FinalOutput
+
+			set @sqlmain='select FOU.Vertical,
+			(Select '+@SumvariableProjections+' from ##FinalOutput Where Vertical=FOU.vertical)as [TotalProjection],
+			(Select '+@SumVariableActuals+' from ##FinalOutput Where Vertical=FOU.vertical)as [TotalActuals],
+			(Select '+@SumvariableSubmitted+' from ##FinalOutput Where Vertical=FOU.vertical)as [TotalSubmitted],
+			(Select '+@SumVariableRejected+' from ##FinalOutput Where Vertical=FOU.vertical)as [TotalRejected],
+			'+@DnyColNameforPivot +' from ##FinalOutput FOU
+			left join ##MainOutput MOU on MOU.Vertical = FOU.Vertical
+			where  FOU.vertical = ''Grand Total'' 
+			--left join  #tblVrtical TV on TV.Vertical = FOU.Vertical
+			'
+
+			--select @DnyColNameforPivot
+
+			--Select sum(Isnull(CPbang,0)) + sum(NPgerm) as [Test] from ##FinalOutput Where Vertical='Autoclaims'
+
+			--print @sqlmain
+			--print @sqlmain
+			EXEC sp_executesql @sqlmain
+
+			if object_id('tempdb..##FinalOutput') is not null
+			begin
+				drop table ##FinalOutput
+			end
+	END
+END
+
+2.ALTER PROCEDURE [dbo].[Proc_GetprojectStatusReport]
+	-- Add the parameters for the stored procedure here
+		@Flag varchar(20) = null,
+		@FromMonth datetime = null ,
+		@ToMonth datetime = null,
+		@Vertical varchar(1000) = null,
+		@EmployeeID varchar(100) = null
+		 
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	SET NOCOUNT ON;
+
+	DECLARE @Year varchar(50),@Currentdate date=getdate()
+	Declare @FromDate date,@ToDate date, @OutQuarter varchar(100) 
+	set @Year = (select YEAR(getdate()))
+
+
+	Begin
+		IF(@Vertical = ''  OR @Vertical = '0')
+		BEGIN
+			SET @Vertical = NULL
+			print @Vertical
+			--SET @MonthStartDate = (SELECT DATEADD(month, DATEDIFF(month, 0, getdate()), 0) AS StartOfMonth)
+			SET @FromMonth = ''
+			SET @ToMonth = ''
+		END
+    End
+	
+	print @EmployeeID
+	
+	print @Year
+	DECLARE @q1start varchar(50) =  ''+@Year+'-04-01'
+	print @q1start
+	DECLARE @q1end varchar(50) =  ''+@Year+'-06-30'
+	PRINT @q1end
+	DECLARE @q2start varchar(50) =  ''+@Year+'-07-01'
+	--print @q1start
+	DECLARE @q2end varchar(50) =  ''+@Year+'-09-30'
+	DECLARE @q3start varchar(50) =  ''+@Year+'-10-01'
+	DECLARE @q3end varchar(50) =  ''+@Year+'-12-31'
+	DECLARE @q4start varchar(50) =  ''+@Year+'-01-01'
+	DECLARE @q4end varchar(50) =  ''+@Year+'-03-31'
+
+	Set @FromDate = @FromMonth
+	Set @ToDate=@ToMonth 
+	print @FromDate
+	print @ToDate
+    -- Insert statements for procedure here
+	----drop temp table ----
+	if Object_ID ('tempdb..#Q1') is not null
+	DROP Table #Q1
+
+	if Object_ID ('tempdb..#Q2') is not null
+	DROP Table #Q2
+
+	if Object_ID ('tempdb..#Q3') is not null
+	DROP Table #Q3
+
+	if Object_ID ('tempdb..#Q4') is not null
+	DROP Table #Q4
+
+	if Object_ID ('tempdb..#QResult') is not null
+	DROP Table #QResult
+
+
+
+	if Object_ID ('tempdb..#QResultTotal') is not null
+	DROP Table #QResultTotal
+
+	---end -----
+
+
+
+	Declare @TempTotal table
+(
+	VerticalName varchar(100),
+	[Quarter1] varchar(100),
+	[Projects initiated Q1] decimal(18,2),
+	[Projects initiated Q1(%)] varchar(100),
+	[Projects to be initiated Q1] decimal(18,2),
+	[Project Closed Q1] decimal(18,2),
+	[Total QNS Amount (USD) projected Q1] decimal(18,2),
+	[Total QNS Amount (USD) Signed off/Realised Q1] decimal(18,2),
+	[Quarter2] varchar(100),
+	[Projects initiated Q2] decimal(18,2),
+	[Projects initiated Q2(%)] varchar(100),
+	[Projects to be initiated Q2] decimal(18,2),
+	[Project Closed Q2] decimal(18,2),
+	[Total QNS Amount (USD) projected Q2] decimal(18,2),
+	[Total QNS Amount (USD) Signed off/Realised Q2] decimal(18,2),
+	[Quarter3] varchar(100),
+	[Projects initiated Q3] decimal(18,2),
+	[Projects initiated Q3(%)] varchar(100),
+	[Projects to be initiated Q3] decimal(18,2),
+	[Project Closed Q3] decimal(18,2),
+	[Total QNS Amount (USD) projected Q3] decimal(18,2),
+	[Total QNS Amount (USD) Signed off/Realised Q3] decimal(18,2),
+	[Quarter4] varchar(100),
+	[Projects initiated Q4] decimal(18,2),
+	[Projects initiated Q4(%)] varchar(100),
+	[Projects to be initiated Q4] decimal(18,2),
+	[Project Closed Q4] decimal(18,2),
+	[Total QNS Amount (USD) projected Q4] decimal(18,2),
+	[Total QNS Amount (USD) Signed off/Realised Q4] decimal(18,2)
+)
+
+Declare @TempGrandTotal table
+(
+	VerticalName varchar(100),
+	[Quarter1] varchar(100),
+	[Projects initiated Q1] decimal(18,2),
+	[Projects initiated Q1(%)]  varchar(100),
+	[Projects to be initiated Q1] decimal(18,2),
+	[Project Closed Q1] decimal(18,2),
+	[Total QNS Amount (USD) projected Q1] decimal(18,2),
+	[Total QNS Amount (USD) Signed off/Realised Q1] decimal(18,2),
+	[Quarter2] varchar(100),
+	[Projects initiated Q2] decimal(18,2),
+	[Projects initiated Q2(%)] varchar(100),
+	[Projects to be initiated Q2] decimal(18,2),
+	[Project Closed Q2] decimal(18,2),
+	[Total QNS Amount (USD) projected Q2] decimal(18,2),
+	[Total QNS Amount (USD) Signed off/Realised Q2] decimal(18,2),
+	[Quarter3] varchar(100),
+	[Projects initiated Q3] decimal(18,2),
+	[Projects initiated Q3(%)] varchar(100),
+	[Projects to be initiated Q3] decimal(18,2),
+	[Project Closed Q3] decimal(18,2),
+	[Total QNS Amount (USD) projected Q3] decimal(18,2),
+	[Total QNS Amount (USD) Signed off/Realised Q3] decimal(18,2),
+	[Quarter4] varchar(100),
+	[Projects initiated Q4] decimal(18,2),
+	[Projects initiated Q4(%)] varchar(100),
+	[Projects to be initiated Q4] decimal(18,2),
+	[Project Closed Q4] decimal(18,2),
+	[Total QNS Amount (USD) projected Q4] decimal(18,2),
+	[Total QNS Amount (USD) Signed off/Realised Q4] decimal(18,2)
+)
+
+
+CREATE TABLE #QResult
+(
+ID int identity (1,1), 
+vertical nvarchar(2000),
+
+[Projectsinitiated_1] int ,
+[Projectsinitiated(%)1]  int ,
+[Projectstobeinitiated1] int ,
+[ProjectClosed1] int ,
+[ProjectAddedonportal1] int ,
+[ProjectAddedonportal(%)1]  int ,
+[TotalQNSAmount(USD)projected1]  int ,
+[TotalQNSAmount(USD)Signedoff/Realised1]  int,
+
+
+[Projectsinitiated_2] int ,
+[Projectsinitiated(%)2]  int ,
+[Projectstobeinitiated2] int ,
+[ProjectClosed2] int ,
+[ProjectAddedonportal2] int ,
+[ProjectAddedonportal(%)2]  int ,
+[TotalQNSAmount(USD)projected2]  int ,
+[TotalQNSAmount(USD)Signedoff/Realised2]  int,
+
+
+[Projectsinitiated_3] int ,
+[Projectsinitiated(%)3]  int ,
+[Projectstobeinitiated3] int ,
+[ProjectClosed3] int ,
+[ProjectAddedonportal3] int ,
+[ProjectAddedonportal(%)3]  int ,
+[TotalQNSAmount(USD)projected3]  int ,
+[TotalQNSAmount(USD)Signedoff/Realised3]  int,
+
+
+[Projectsinitiated_4] int ,
+[Projectsinitiated(%)4]  int ,
+[Projectstobeinitiated4] int ,
+[ProjectClosed4] int ,
+[ProjectAddedonportal4] int ,
+[ProjectAddedonportal(%)4]  int ,
+[TotalQNSAmount(USD)projected4]  int ,
+[TotalQNSAmount(USD)Signedoff/Realised4]  int
+)
+
+
+
+
+CREATE TABLE #QResultTotal
+(
+ID int identity (1,1), 
+vertical nvarchar(2000),
+
+[Projectsinitiated_1] int ,
+[Projectsinitiated(%)1]  int ,
+[Projectstobeinitiated1] int ,
+[ProjectClosed1] int ,
+[ProjectAddedonportal1] int ,
+[ProjectAddedonportal(%)1]  int ,
+[TotalQNSAmount(USD)projected1]  int ,
+[TotalQNSAmount(USD)Signedoff/Realised1]  int,
+
+
+[Projectsinitiated_2] int ,
+[Projectsinitiated(%)2]  int ,
+[Projectstobeinitiated2] int ,
+[ProjectClosed2] int ,
+[ProjectAddedonportal2] int ,
+[ProjectAddedonportal(%)2]  int ,
+[TotalQNSAmount(USD)projected2]  int ,
+[TotalQNSAmount(USD)Signedoff/Realised2]  int,
+
+
+[Projectsinitiated_3] int ,
+[Projectsinitiated(%)3]  int ,
+[Projectstobeinitiated3] int ,
+[ProjectClosed3] int ,
+[ProjectAddedonportal3] int ,
+[ProjectAddedonportal(%)3]  int ,
+[TotalQNSAmount(USD)projected3]  int ,
+[TotalQNSAmount(USD)Signedoff/Realised3]  int,
+
+
+[Projectsinitiated_4] int ,
+[Projectsinitiated(%)4]  int ,
+[Projectstobeinitiated4] int ,
+[ProjectClosed4] int ,
+[ProjectAddedonportal4] int ,
+[ProjectAddedonportal(%)4]  int ,
+[TotalQNSAmount(USD)projected4]  int ,
+[TotalQNSAmount(USD)Signedoff/Realised4]  int
+)
+
+select A.VerticalName,'Q1' as [Quarter1],A.[Projects initiated],convert(numeric(18,2),(convert(float,A.[Projects initiated])/convert(float,nullif(B.[Projects to be initiated],0))) * 100) as [Projects initiated (%)],B.[Projects to be initiated],C.[Project Closed],
+	D.[Project Added on portal],(A.[Projects initiated]/B.[Projects to be initiated])*100 as [Project Added on portal (%)],E.[Total QNS Amount (USD) projected],F.[Total QNS Amount (USD) Signed off/Realised]
+	into #Q1
+	 from 
+	(
+		select pd.verticalname, count(ProjectName) as [Projects initiated]
+		 --convert(decimal(10,2),((select count(ProjectName) as [Projects initiated]  from ProjectDetails 
+   --                     where DateCreated between @q1start and @q1end and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+   --                     and  ProjStatusID = 1 )/ 
+   --                     nullif((select count(ProjectName) as [Projects to be initiated]  from ProjectDetails 
+   --                     where DateCreated between @q1start and @q1end and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+   --                     and ProjStatusID = 32 ),0)))*100  as percentg 
+		from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.DateCreated between @q1start and @q1end and  ProjStatusID = 1
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))   and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	)A
+	left join  
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Projects to be initiated]  from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		 where pd.DateCreated between @q1start and @q1end and ProjStatusID = 32 
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID  
+		group by pd.verticalname
+	) B 
+	on A.verticalname = B.verticalname 
+	left join
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Project Closed]  from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		 where pd.DateCreated between @q1start and @q1end and ProjStatusID = 33    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) C 
+	on A.verticalname = C.verticalname
+	right join
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Project Added on portal] 
+		--convert(decimal(10,2),(select count(ProjectName) as [Projects initiated]  from ProjectDetails 
+  --                      where DateCreated between @q1start and @q1end and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+  --                      and  ProjStatusID = 1  and  isprojection = 1))/ 
+  --                      convert(decimal(10,2),(select count(ProjectName) as [Projects to be initiated]  from ProjectDetails 
+  --                      where DateCreated between @q1start and @q1end  and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+  --                      and ProjStatusID = 32  and  isprojection = 1))*100  as percentportal
+		from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where isprojection = 1 and pd.DateCreated between @q1start and @q1end    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) D 
+	on A.verticalname = D.verticalname
+	left join
+	(
+		
+		select pd.verticalname,sum(ProjectedQNS) as [Total QNS Amount (USD) projected] from ProjectDetails pd
+		inner join TX_QNS TQNS on TQNS.ProjectID = pd.ProjectID
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.ProjStatusID in (1,19,32,33) and pd.DateCreated between @q1start and @q1end
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) E 
+	on A.verticalname = E.verticalname
+	left join
+	(
+		select pd.verticalname,sum(ActualQNS) as [Total QNS Amount (USD) Signed off/Realised] from ProjectDetails pd
+		inner join TX_QNS TQNS on TQNS.ProjectID = pd.ProjectID
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.ProjStatusID in (1,19,32,33) and pd.DateCreated between @q1start and @q1end
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) F 
+	on A.verticalname = F.verticalname
+
+
+select A.VerticalName,'Q2' as [Quarter2],A.[Projects initiated],convert(numeric(18,2),(convert(float,A.[Projects initiated])/convert(float,nullif(B.[Projects to be initiated],0))) * 100) as [Projects initiated (%)],B.[Projects to be initiated],C.[Project Closed],
+	D.[Project Added on portal],(A.[Projects initiated]/B.[Projects to be initiated])*100 as [Project Added on portal (%)],E.[Total QNS Amount (USD) projected],F.[Total QNS Amount (USD) Signed off/Realised] 
+	INTO #Q2
+	from 
+	(
+		select pd.verticalname, count(ProjectName) as [Projects initiated]
+		 --convert(decimal(10,2),((select count(ProjectName) as [Projects initiated]  from ProjectDetails 
+   --                     where DateCreated between '2018-07-01' and '2018-07-13'  and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+   --                     and  ProjStatusID = 1 )/ 
+   --                     nullif((select count(ProjectName) as [Projects to be initiated]  from ProjectDetails 
+   --                     where DateCreated between '2018-07-01' and '2018-07-13' and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+   --                     and ProjStatusID = 32 ),0)))*100  as percentg 
+		from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.DateCreated between @q2start and @q2end and  ProjStatusID = 1
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID   
+		group by pd.verticalname
+	)A
+	left join  
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Projects to be initiated]  from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.DateCreated between @q2start and @q2end and ProjStatusID = 32
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID    
+		group by pd.verticalname
+	) B 
+	on A.verticalname = B.verticalname 
+	left join
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Project Closed]  from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		 where pd.DateCreated between @q2start and @q2end and ProjStatusID = 33    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) C 
+	on A.verticalname = C.verticalname
+	left join
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Project Added on portal] 
+		--convert(decimal(10,2),(select count(ProjectName) as [Projects initiated]  from ProjectDetails 
+  --                      where DateCreated between '2018-07-01' and '2018-07-13' and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+  --                      and  ProjStatusID = 1  and  isprojection = 1))/ 
+  --                      convert(decimal(10,2),(select count(ProjectName) as [Projects to be initiated]  from ProjectDetails 
+  --                      where DateCreated between '2018-07-01' and '2018-07-13' and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+  --                      and ProjStatusID = 32  and  isprojection = 1))*100  as percentportal
+		from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null  
+		where isprojection = 1 and pd.DateCreated between @q2start and @q2end    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) D 
+	on A.verticalname = D.verticalname
+	left join
+	(
+		select pd.verticalname,sum(ProjectedQNS) as [Total QNS Amount (USD) projected] from ProjectDetails pd
+		inner join TX_QNS TQNS on TQNS.ProjectID = pd.ProjectID
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.ProjStatusID in (1,19,32,33) and pd.DateCreated between @q2start and @q2end
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) E 
+	on A.verticalname = E.verticalname
+	left join
+	(
+		select pd.verticalname,sum(ActualQNS) as [Total QNS Amount (USD) Signed off/Realised] from ProjectDetails pd
+		inner join TX_QNS TQNS on TQNS.ProjectID = pd.ProjectID
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.ProjStatusID in (1,19,32,33) and pd.DateCreated between @q2start and @q2end
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) F 
+	on A.verticalname = F.verticalname
+
+
+
+select A.VerticalName,'Q3' as [Quarter3],A.[Projects initiated],convert(numeric(18,2),(convert(float,A.[Projects initiated])/convert(float,nullif(B.[Projects to be initiated],0))) * 100) as [Projects initiated (%)],B.[Projects to be initiated],C.[Project Closed],
+	D.[Project Added on portal],(A.[Projects initiated]/B.[Projects to be initiated])*100 as [Project Added on portal (%)],E.[Total QNS Amount (USD) projected],F.[Total QNS Amount (USD) Signed off/Realised]
+	Into #Q3
+	 from 
+	(
+		select pd.verticalname, count(ProjectName) as [Projects initiated]
+		 --convert(decimal(10,2),((select count(ProjectName) as [Projects initiated]  from ProjectDetails 
+   --                     where DateCreated between '2018-07-01' and '2018-07-13'  and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+   --                     and  ProjStatusID = 1 )/ 
+   --                     nullif((select count(ProjectName) as [Projects to be initiated]  from ProjectDetails 
+   --                     where DateCreated between '2018-07-01' and '2018-07-13'  and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+   --                     and ProjStatusID = 32 ),0)))*100  as percentg 
+		from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.DateCreated between @q3start and @q3end and  ProjStatusID = 1
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID   
+		group by pd.verticalname
+	)A
+	left join  
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Projects to be initiated]  from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null  
+		where pd.DateCreated between @q3start and @q3end and ProjStatusID = 32    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) B 
+	on A.verticalname = B.verticalname 
+	left join
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Project Closed]  from ProjectDetails pd
+		 left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		 where pd.DateCreated between @q3start and @q3end and ProjStatusID = 33    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) C 
+	on A.verticalname = C.verticalname
+	left join
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Project Added on portal] 
+		--convert(decimal(10,2),(select count(ProjectName) as [Projects initiated]  from ProjectDetails 
+  --                      where DateCreated between '2018-07-01' and '2018-07-13' and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+  --                      and  ProjStatusID = 1  and  isprojection = 1))/ 
+  --                      convert(decimal(10,2),(select count(ProjectName) as [Projects to be initiated]  from ProjectDetails 
+  --                      where DateCreated between '2018-07-01' and '2018-07-13' and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+  --                      and ProjStatusID = 32  and  isprojection = 1))*100  as percentportal
+		from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where isprojection = 1 and pd.DateCreated between @q3start and @q3end    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) D 
+	on A.verticalname = D.verticalname
+	left join
+	(
+		select pd.verticalname,sum(ProjectedQNS) as [Total QNS Amount (USD) projected] from ProjectDetails pd
+		inner join TX_QNS TQNS on TQNS.ProjectID = pd.ProjectID
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.ProjStatusID in (1,19,32,33) and pd.DateCreated between @q3start and @q3end
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) E 
+	on A.verticalname = E.verticalname
+	left join
+	(
+		select pd.verticalname,sum(ActualQNS) as [Total QNS Amount (USD) Signed off/Realised] from ProjectDetails pd
+		inner join TX_QNS TQNS on TQNS.ProjectID = pd.ProjectID
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.ProjStatusID in (1,19,32,33) and pd.DateCreated between @q3start and @q3end
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) F 
+	on A.verticalname = F.verticalname
+
+
+
+	
+select A.VerticalName,'Q4' as [Quarter4],A.[Projects initiated],convert(numeric(18,2),(convert(float,A.[Projects initiated])/convert(float,nullif(B.[Projects to be initiated],0))) * 100) as [Projects initiated (%)],B.[Projects to be initiated],C.[Project Closed],
+	D.[Project Added on portal],(A.[Projects initiated]/B.[Projects to be initiated])*100 as [Project Added on portal (%)],E.[Total QNS Amount (USD) projected],F.[Total QNS Amount (USD) Signed off/Realised] 
+	INTO #Q4
+	from 
+	(
+		select pd.verticalname, count(ProjectName) as [Projects initiated]
+		 --convert(decimal(10,2),((select count(ProjectName) as [Projects initiated]  from ProjectDetails 
+   --                     where DateCreated between '2018-07-01' and '2018-07-13' and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+   --                     and  ProjStatusID = 1 )/ 
+   --                     nullif((select count(ProjectName) as [Projects to be initiated]  from ProjectDetails 
+   --                     where DateCreated between '2018-07-01' and '2018-07-13' and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+   --                     and ProjStatusID = 32 ),0)))*100  as percentg 
+		from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.DateCreated between @q4start and @q4end and  ProjStatusID = 1
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID   
+		group by pd.verticalname
+	)A
+	left join  
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Projects to be initiated]  from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null  
+		where pd.DateCreated between @q4start and @q4end and ProjStatusID = 32    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) B 
+	on A.verticalname = B.verticalname 
+	left join
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Project Closed]  
+		from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null  
+		where pd.DateCreated between @q4start and @q4end and ProjStatusID = 33    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) C 
+	on A.verticalname = C.verticalname
+	left join
+	(
+		select pd.verticalname,count(isnull(ProjectName,0)) as [Project Added on portal] 
+		--convert(decimal(10,2),(select count(ProjectName) as [Projects initiated]  from ProjectDetails 
+  --                      where DateCreated between '2018-07-01' and '2018-07-13' and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+  --                      and  ProjStatusID = 1  and  isprojection = 1))/ 
+  --                      convert(decimal(10,2),(select count(ProjectName) as [Projects to be initiated]  from ProjectDetails 
+  --                      where DateCreated between '2018-07-01' and '2018-07-13' and ((@Vertical IS NULL ) OR (Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+  --                      and ProjStatusID = 32  and  isprojection = 1))*100  as percentportal
+		from ProjectDetails pd
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null  
+		where isprojection = 1 and pd.DateCreated between @q4start and @q4end    
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) D 
+	on A.verticalname = D.verticalname
+	left join
+	(
+		select pd.verticalname,sum(ProjectedQNS) as [Total QNS Amount (USD) projected] from ProjectDetails pd
+		inner join TX_QNS TQNS on TQNS.ProjectID = pd.ProjectID
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.ProjStatusID in (1,19,32,33) and pd.DateCreated between @q4start and @q4end
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) E 
+	on A.verticalname = E.verticalname
+	left join
+	(
+		select pd.verticalname,sum(ActualQNS) as [Total QNS Amount (USD) Signed off/Realised] from ProjectDetails pd
+		inner join TX_QNS TQNS on TQNS.ProjectID = pd.ProjectID
+		left join TM_UserVerticalMap u WITH (NOLOCK) on u.VerticalName=pd.VerticalName and pd.VerticalName is not null 
+		where pd.ProjStatusID in (1,19,32,33) and pd.DateCreated between @q4start and @q4end
+		and ((@Vertical IS NULL ) OR (pd.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) and u.EmployeeID = @EmployeeID
+		group by pd.verticalname
+	) F 
+	on A.verticalname = F.verticalname
+
+
+
+
+
+IF(@Flag = 'Vertical Wise')
+BEGIN
+insert into @TempTotal
+select Q1.VerticalName,Q1.[Quarter1],isnull(Q1.[Projects initiated],0) as [Projects initiated Q1],Q1.[Projects initiated (%)] as [Projects initiated Q1(%)],isnull(Q1.[Projects to be initiated],0) as [Projects to be initiated Q1],isnull(Q1.[Project Closed],0) as [Project Closed Q1],
+
+isnull(Q1.[Total QNS Amount (USD) projected],0) as [Total QNS Amount (USD) projected Q1],isnull(Q1.[Total QNS Amount (USD) Signed off/Realised],0) as [Total QNS Amount (USD) Signed off/Realised Q1],
+Q2.[Quarter2],isnull(Q2.[Projects initiated],0) as [Projects initiated Q2],Q2.[Projects initiated (%)] as [Projects initiated Q2(%)],isnull(Q2.[Projects to be initiated],0) as [Projects to be initiated Q2],isnull(Q2.[Project Closed],0) as [Project Closed Q2],
+
+isnull(Q2.[Total QNS Amount (USD) projected],0) as [Total QNS Amount (USD) projected Q2],isnull(Q2.[Total QNS Amount (USD) Signed off/Realised],0) as [Total QNS Amount (USD) Signed off/Realised Q2],
+Q3.[Quarter3],isnull(Q3.[Projects initiated],0) as [Projects initiated Q3],Q3.[Projects initiated (%)] as [Projects initiated Q3(%)],isnull(Q3.[Projects to be initiated],0) as [Projects to be initiated Q3],isnull(Q3.[Project Closed],0) as [Project Closed Q3],
+
+isnull(Q3.[Total QNS Amount (USD) projected],0) as [Total QNS Amount (USD) projected Q3],isnull(Q3.[Total QNS Amount (USD) Signed off/Realised],0) as [Total QNS Amount (USD) Signed off/Realised Q3],
+Q4.[Quarter4],isnull(Q4.[Projects initiated],0) as [Projects initiated Q4],Q4.[Projects initiated (%)] as [Projects initiated Q4(%)],isnull(Q4.[Projects to be initiated],0) as [Projects to be initiated Q4],isnull(Q4.[Project Closed],0) as [Project Closed Q4],
+
+isnull(Q4.[Total QNS Amount (USD) projected],0) as [Total QNS Amount (USD) projected Q4],isnull(Q4.[Total QNS Amount (USD) Signed off/Realised],0) as [Total QNS Amount (USD) Signed off/Realised Q4]
+from 
+(
+	select
+	 VerticalName, [Quarter1],[Projects initiated],[Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised]
+	FROM #Q1
+)Q1
+left Join
+(
+	
+	select
+	VerticalName, [Quarter2],[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+	FROM #Q2
+)Q2 
+on Q1.verticalname= Q2.verticalname 
+left join
+(
+
+select VerticalName, [Quarter3],[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal],[Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised]
+from #Q3
+	
+)Q3
+on Q1.verticalname = Q3.verticalname
+left join
+(
+
+select
+	VerticalName, [Quarter4],[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+	FROM #Q4
+
+)Q4
+on Q1.verticalname = Q4.verticalname
+
+
+insert into #QResult (vertical ,[Projectsinitiated_1]  ,[Projectsinitiated(%)1]   ,[Projectstobeinitiated1]  ,[ProjectClosed1]  ,[ProjectAddedonportal1]  ,[ProjectAddedonportal(%)1]   ,[TotalQNSAmount(USD)projected1]   ,[TotalQNSAmount(USD)Signedoff/Realised1]  )
+select 
+	VerticalName,[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+FROM #Q1
+
+
+insert into #QResult (vertical ,[Projectsinitiated_2]  ,[Projectsinitiated(%)2]   ,[Projectstobeinitiated2]  ,[ProjectClosed2]  ,[ProjectAddedonportal2]  ,[ProjectAddedonportal(%)2]   ,[TotalQNSAmount(USD)projected2]   ,[TotalQNSAmount(USD)Signedoff/Realised2]  )
+select 
+	VerticalName,[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+FROM #Q2
+
+
+insert into #QResult (vertical ,[Projectsinitiated_3]  ,[Projectsinitiated(%)3]   ,[Projectstobeinitiated3]  ,[ProjectClosed3]  ,[ProjectAddedonportal3]  ,[ProjectAddedonportal(%)3]   ,[TotalQNSAmount(USD)projected3]   ,[TotalQNSAmount(USD)Signedoff/Realised3]  )
+select 
+	VerticalName,[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+FROM #Q3
+
+insert into #QResult (vertical ,[Projectsinitiated_4]  ,[Projectsinitiated(%)4]   ,[Projectstobeinitiated4]  ,[ProjectClosed4]  ,[ProjectAddedonportal4]  ,[ProjectAddedonportal(%)4]   ,[TotalQNSAmount(USD)projected4]   ,[TotalQNSAmount(USD)Signedoff/Realised4]  )
+select 
+	VerticalName,[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+FROM #Q4
+
+--select * from #q1
+--select * from #q2
+--select * from #q3
+--select * from #q4
+--select * from #QResult
+
+insert into #QResultTotal
+select
+vertical
+,sum(Projectsinitiated_1)  Projectsinitiated_1
+,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+,sum(Projectstobeinitiated1) Projectstobeinitiated1
+,sum(ProjectClosed1) ProjectClosed1
+,sum(ProjectAddedonportal1) ProjectAddedonportal1
+,sum([ProjectAddedonportal(%)1]) [ProjectAddedonportal(%)1]
+,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+,sum(Projectsinitiated_2) Projectsinitiated_2
+
+,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+,sum(Projectstobeinitiated2) Projectstobeinitiated2
+,sum(ProjectClosed2) ProjectClosed2
+,sum(ProjectAddedonportal2) ProjectAddedonportal2
+,sum([ProjectAddedonportal(%)2]) [ProjectAddedonportal(%)2]
+,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+,sum(Projectsinitiated_3) Projectsinitiated_3
+,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+,sum(Projectstobeinitiated3) Projectstobeinitiated3
+,sum(ProjectClosed3) ProjectClosed3
+,sum(ProjectAddedonportal3) ProjectAddedonportal3
+,sum([ProjectAddedonportal(%)3]) [ProjectAddedonportal(%)3]
+,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+,sum(Projectsinitiated_4) Projectsinitiated_4
+,sum([Projectsinitiated(%)4]) [Projectsinitiated(%)4]
+,sum([Projectstobeinitiated4]) [Projectstobeinitiated4]
+,sum(ProjectClosed4) ProjectClosed4
+,sum(ProjectAddedonportal4) ProjectAddedonportal4
+,sum([ProjectAddedonportal(%)4]) [ProjectAddedonportal(%)4]
+,sum([TotalQNSAmount(USD)projected4]) [TotalQNSAmount(USD)projected4]
+,sum([TotalQNSAmount(USD)Signedoff/Realised4])[TotalQNSAmount(USD)Signedoff/Realised4]
+
+from #QResult
+Group by Vertical
+
+insert into #QResultTotal
+select 'Grand Total'
+,sum(Projectsinitiated_1)  Projectsinitiated_1
+,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+,sum(Projectstobeinitiated1) Projectstobeinitiated1
+,sum(ProjectClosed1) ProjectClosed1
+,sum(ProjectAddedonportal1) ProjectAddedonportal1
+,sum([ProjectAddedonportal(%)1]) [ProjectAddedonportal(%)1]
+,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+,sum(Projectsinitiated_2) Projectsinitiated_2
+
+,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+,sum(Projectstobeinitiated2) Projectstobeinitiated2
+,sum(ProjectClosed2) ProjectClosed2
+,sum(ProjectAddedonportal2) ProjectAddedonportal2
+,sum([ProjectAddedonportal(%)2]) [ProjectAddedonportal(%)2]
+,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+,sum(Projectsinitiated_3) Projectsinitiated_3
+,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+,sum(Projectstobeinitiated3) Projectstobeinitiated3
+,sum(ProjectClosed3) ProjectClosed3
+,sum(ProjectAddedonportal3) ProjectAddedonportal3
+,sum([ProjectAddedonportal(%)3]) [ProjectAddedonportal(%)3]
+,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+,sum(Projectsinitiated_4) Projectsinitiated_4
+,sum([Projectsinitiated(%)4]) [Projectsinitiated(%)4]
+,sum([Projectstobeinitiated4]) [Projectstobeinitiated4]
+,sum(ProjectClosed4) ProjectClosed4
+,sum(ProjectAddedonportal4) ProjectAddedonportal4
+,sum([ProjectAddedonportal(%)4]) [ProjectAddedonportal(%)4]
+,sum([TotalQNSAmount(USD)projected4]) [TotalQNSAmount(USD)projected4]
+,sum([TotalQNSAmount(USD)Signedoff/Realised4])[TotalQNSAmount(USD)Signedoff/Realised4]
+
+from #QResult
+
+
+--select * from #QResultTotal
+
+	if(@FromDate = '' and  @ToDate = '' )
+	begin
+	print '1'
+	if (@Currentdate between @q1start and @q1end)
+		Begin
+		   print 'Q1'
+		   select 
+		    vertical ,
+			[Projectsinitiated_1] as [Projects initiated(Number)],
+			[Projectsinitiated(%)1]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated1] as [Projects to be initiated] ,
+			[ProjectClosed1] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected1]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised1] AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q1'
+			 select  @OutQuarter As 'OutQuarter'
+		End
+		Else if(@Currentdate between @q2start and @q2end)
+		Begin
+		  print 'Q1Q2'
+		  select 
+			vertical ,
+			[Projectsinitiated_1] as [Projects initiated(Number)],
+			[Projectsinitiated(%)1]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated1] as [Projects to be initiated] ,
+			[ProjectClosed1] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected1]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised1] AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_2] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)2]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated2] as [Projects to be initiated] ,
+			[ProjectClosed2] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected2]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised2]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			-- union all
+			-- select 
+			--'Grand Total' as VerticalName ,
+			--sum([Projects initiated Q1]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q1]),0))/convert(float,sum(nullif([Projects to be initiated Q1],0)))) * 100) as [Projects initiated Q1(%)],
+			--sum([Projects to be initiated Q1]) as [Projects to be initiated] ,
+			--sum([Project Closed Q1]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q1]) as [Total QNS Amount (USD) projected],
+			--sum([Total QNS Amount (USD) Signed off/Realised Q1]) as  [Total QNS Amount (USD) Signed off/Realised] ,
+			--sum([Projects initiated Q2]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q2]),0))/convert(float,sum(nullif([Projects to be initiated Q2],0)))) * 100) as [Projects initiated Q2(%)],
+			--sum([Projects to be initiated Q2]) as [Projects to be initiated] ,
+			--sum([Project Closed Q2]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q2]) as [Total QNS Amount (USD) projected] ,
+			--sum([Total QNS Amount (USD) Signed off/Realised Q2]) as [Total QNS Amount (USD) Signed off/Realised]
+			-- from @TempGrandTotal
+			-- group by VerticalName
+
+			 set @OutQuarter = 'Q1,Q2'
+			 select  @OutQuarter As 'OutQuarter'
+		End
+		Else if(@Currentdate between @q3start and @q3end)
+		Begin
+		  print 'Q1Q2Q3'
+		  select 
+			vertical ,
+			[Projectsinitiated_1] as [Projects initiated(Number)],
+			[Projectsinitiated(%)1]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated1] as [Projects to be initiated] ,
+			[ProjectClosed1] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected1]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised1] AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_2] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)2]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated2] as [Projects to be initiated] ,
+			[ProjectClosed2] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected2]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised2]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_3] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)3]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated3] as [Projects to be initiated] ,
+			[ProjectClosed3] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected3]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised3]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			set @OutQuarter = 'Q1,Q2,Q3'
+			 select  @OutQuarter As 'OutQuarter'
+		End
+		Else if (@Currentdate between @q4start and @q4end)
+		Begin
+		  print 'Q1Q2Q3Q4'
+		  select 
+			vertical ,
+			[Projectsinitiated_1] as [Projects initiated(Number)],
+			[Projectsinitiated(%)1]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated1] as [Projects to be initiated] ,
+			[ProjectClosed1] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected1]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised1] AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_2] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)2]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated2] as [Projects to be initiated] ,
+			[ProjectClosed2] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected2]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised2]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_3] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)3]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated3] as [Projects to be initiated] ,
+			[ProjectClosed3] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected3]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised3]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_4] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)4]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated4] as [Projects to be initiated] ,
+			[ProjectClosed4] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected4]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised4]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q1,Q2,Q3,Q4'
+			 select  @OutQuarter As 'OutQuarter'
+		End
+	end
+	else
+	begin
+	print '2'
+	 if((@FromDate between @q1start and @q1end) and (@ToDate between @q1start and @q1end) )
+	 Begin
+	   print @q1start 
+	   print @q1end
+	   print 'Only Q1'
+	    select 
+			vertical ,
+			[Projectsinitiated_1] as [Projects initiated(Number)],
+			[Projectsinitiated(%)1]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated1] as [Projects to be initiated] ,
+			[ProjectClosed1] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected1]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised1] AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q1'
+			 select  @OutQuarter As 'OutQuarter'
+	 end
+	 Else if ((@FromDate between @q1start and @q1end) and (@ToDate between @q2start and @q2end))
+	 Begin
+	   print @q1start 
+	   print @q2end
+	   print 'Only Q1Q2'
+	   select 
+			vertical ,
+			[Projectsinitiated_1] as [Projects initiated(Number)],
+			[Projectsinitiated(%)1]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated1] as [Projects to be initiated] ,
+			[ProjectClosed1] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected1]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised1] AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_2] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)2]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated2] as [Projects to be initiated] ,
+			[ProjectClosed2] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected2]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised2]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			-- union all
+			-- select 
+			--'Grand Total' as VerticalName ,
+			--sum([Projects initiated Q1]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q1]),0))/convert(float,sum(nullif([Projects to be initiated Q1],0)))) * 100) as [Projects initiated Q1(%)],
+			--sum([Projects to be initiated Q1]) as [Projects to be initiated] ,
+			--sum([Project Closed Q1]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q1]) as [Total QNS Amount (USD) projected],
+			--sum([Total QNS Amount (USD) Signed off/Realised Q1]) as  [Total QNS Amount (USD) Signed off/Realised] ,
+			--sum([Projects initiated Q2]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q2]),0))/convert(float,sum(nullif([Projects to be initiated Q2],0)))) * 100) as [Projects initiated Q2(%)],
+			--sum([Projects to be initiated Q2]) as [Projects to be initiated] ,
+			--sum([Project Closed Q2]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q2]) as [Total QNS Amount (USD) projected] ,
+			--sum([Total QNS Amount (USD) Signed off/Realised Q2]) as [Total QNS Amount (USD) Signed off/Realised]
+			-- from @TempGrandTotal
+			 --group by vertical
+			 set @OutQuarter = 'Q1,Q2'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q1start and @q1end) and (@ToDate between @q3start and @q3end))
+	 Begin
+	   print @q1start 
+	   print @q3end
+	   print 'Only Q1Q2Q3'
+	    select 
+			vertical ,
+			[Projectsinitiated_1] as [Projects initiated(Number)],
+			[Projectsinitiated(%)1]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated1] as [Projects to be initiated] ,
+			[ProjectClosed1] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected1]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised1] AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_2] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)2]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated2] as [Projects to be initiated] ,
+			[ProjectClosed2] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected2]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised2]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_3] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)3]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated3] as [Projects to be initiated] ,
+			[ProjectClosed3] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected3]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised3]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			from #QResultTotal
+			--union all
+			--select 
+			--'Grand Total' as VerticalName ,
+			--sum([Projects initiated Q1]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q1]),0))/convert(float,sum(nullif([Projects to be initiated Q1],0)))) * 100) as [Projects initiated Q1(%)],
+			--sum([Projects to be initiated Q1]) as [Projects to be initiated] ,
+			--sum([Project Closed Q1]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q1]) as [Total QNS Amount (USD) projected],
+			--sum([Total QNS Amount (USD) Signed off/Realised Q1]) as  [Total QNS Amount (USD) Signed off/Realised] ,
+			--sum([Projects initiated Q2]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q2]),0))/convert(float,sum(nullif([Projects to be initiated Q2],0)))) * 100) as [Projects initiated Q2(%)],
+			--sum([Projects to be initiated Q2]) as [Projects to be initiated] ,
+			--sum([Project Closed Q2]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q2]) as [Total QNS Amount (USD) projected] ,
+			--sum([Total QNS Amount (USD) Signed off/Realised Q2]) as [Total QNS Amount (USD) Signed off/Realised],
+			--sum([Projects initiated Q3]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q3]),0))/convert(float,sum(nullif([Projects to be initiated Q3],0)))) * 100) as [Projects initiated Q3(%)],
+			--sum([Projects to be initiated Q3]) as [Projects to be initiated],
+			--sum([Project Closed Q3]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q3]) as [Total QNS Amount (USD) projected],
+			--sum([Total QNS Amount (USD) Signed off/Realised Q3]) as [Total QNS Amount (USD) Signed off/Realised]
+			--from @TempGrandTotal
+			--group by VerticalName
+			set @OutQuarter = 'Q1,Q2,Q3'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q1start and @q1end) and (@ToDate between @q4start and @q4end))
+	 Begin
+	   print @q1start 
+	   print @q4end
+	    print 'Only Q1Q2Q3Q4'
+	   select 
+			vertical ,
+			[Projectsinitiated_1] as [Projects initiated(Number)],
+			[Projectsinitiated(%)1]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated1] as [Projects to be initiated] ,
+			[ProjectClosed1] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected1]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised1] AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_2] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)2]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated2] as [Projects to be initiated] ,
+			[ProjectClosed2] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected2]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised2]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_3] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)3]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated3] as [Projects to be initiated] ,
+			[ProjectClosed3] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected3]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised3]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_4] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)4]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated4] as [Projects to be initiated] ,
+			[ProjectClosed4] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected4]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised4]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			-- union all
+			-- select 
+			--'Grand Total' as VerticalName ,
+			--sum([Projects initiated Q1]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q1]),0))/convert(float,sum(nullif([Projects to be initiated Q1],0)))) * 100) as [Projects initiated Q1(%)],
+			--sum([Projects to be initiated Q1]) as [Projects to be initiated] ,
+			--sum([Project Closed Q1]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q1]) as [Total QNS Amount (USD) projected],
+			--sum([Total QNS Amount (USD) Signed off/Realised Q1]) as  [Total QNS Amount (USD) Signed off/Realised] ,
+			--sum([Projects initiated Q2]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q2]),0))/convert(float,sum(nullif([Projects to be initiated Q2],0)))) * 100) as [Projects initiated Q2(%)],
+			--sum([Projects to be initiated Q2]) as [Projects to be initiated] ,
+			--sum([Project Closed Q2]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q2]) as [Total QNS Amount (USD) projected] ,
+			--sum([Total QNS Amount (USD) Signed off/Realised Q2]) as [Total QNS Amount (USD) Signed off/Realised],
+			--sum([Projects initiated Q3]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q3]),0))/convert(float,sum(nullif([Projects to be initiated Q3],0)))) * 100) as [Projects initiated Q3(%)],
+			--sum([Projects to be initiated Q3]) as [Projects to be initiated],
+			--sum([Project Closed Q3]) as [Project Closed],
+			--sum([Total QNS Amount (USD) projected Q3]) as [Total QNS Amount (USD) projected],
+			--sum([Total QNS Amount (USD) Signed off/Realised Q3]) as [Total QNS Amount (USD) Signed off/Realised],
+			--sum([Projects initiated Q4]) as [Projects initiated],
+			--convert(numeric(18,2),(convert(float,isnull(sum([Projects initiated Q4]),0))/convert(float,sum(nullif([Projects to be initiated Q4],0)))) * 100) as [Projects initiated Q4(%)],
+			--sum([Projects to be initiated Q4]) as [Projects to be initiated] ,
+			--sum([Project Closed Q4]) as [Project Closed] ,
+			--sum([Total QNS Amount (USD) projected Q4]) as [Total QNS Amount (USD) projected] ,
+			--sum([Total QNS Amount (USD) Signed off/Realised Q4]) as [Total QNS Amount (USD) Signed off/Realised] 
+			-- from @TempGrandTotal
+			-- group by VerticalName 
+
+			 set @OutQuarter = 'Q1,Q2,Q3,Q4'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q2start and @q2end) and (@ToDate between @q2start and @q2end))
+	 Begin
+	   print @q2start 
+	   print @q2end
+	    print 'Only Q2'
+	    select 
+			vertical ,
+			[Projectsinitiated_2] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)2]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated2] as [Projects to be initiated] ,
+			[ProjectClosed2] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected2]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised2]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q2'
+			 select  @OutQuarter As 'OutQuarter' 
+	 End
+	 Else if ((@FromDate between @q2start and @q2end) and (@Tomonth between @q3start and @q3end))
+	 Begin
+	   print @q2start 
+	   print @q3end
+	    print 'Only Q2Q3'
+	    select 
+			vertical ,
+			
+			[Projectsinitiated_2] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)2]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated2] as [Projects to be initiated] ,
+			[ProjectClosed2] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected2]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised2]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_3] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)3]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated3] as [Projects to be initiated] ,
+			[ProjectClosed3] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected3]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised3]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			set @OutQuarter = 'Q2,Q3'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q2start and @q2end) and (@ToDate between @q4start and @q4end))
+	 Begin
+	   print @q2start 
+	   print @q4end
+	    print 'Only Q2Q3Q4'
+	    select 
+			vertical ,
+			[Projectsinitiated_2] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)2]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated2] as [Projects to be initiated] ,
+			[ProjectClosed2] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected2]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised2]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_3] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)3]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated3] as [Projects to be initiated] ,
+			[ProjectClosed3] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected3]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised3]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_4] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)4]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated4] as [Projects to be initiated] ,
+			[ProjectClosed4] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected4]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised4]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q2,Q3,Q4'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q3start and @q3end) and (@ToDate between @q3start and @q3end))
+	 Begin
+	   print @q3start 
+	   print @q3end
+	    print 'Only Q3'
+	   select 
+			vertical ,
+			
+			[Projectsinitiated_3] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)3]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated3] as [Projects to be initiated] ,
+			[ProjectClosed3] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected3]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised3]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			set @OutQuarter = 'Q3'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q3start and @q3end) and (@ToDate between @q4start and @q4end))
+	 Begin
+	   print @q3start 
+	   print @q4end
+	    print 'Only Q3Q4'
+	    select 
+			vertical ,
+			[Projectsinitiated_3] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)3]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated3] as [Projects to be initiated] ,
+			[ProjectClosed3] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected3]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised3]   AS   [Total QNS Amount (USD) Signed off/Realised],
+			[Projectsinitiated_4] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)4]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated4] as [Projects to be initiated] ,
+			[ProjectClosed4] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected4]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised4]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q3,Q4'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q4start and @q4end) and (@ToDate between @q4start and @q4end))
+	 Begin
+	   print @q4start 
+	   print @q4end
+	    print 'Only Q4'
+	    select 
+			vertical ,
+			[Projectsinitiated_4] as [Projects initiated(Number)] ,
+			[Projectsinitiated(%)4]  as [Projects initiated (%)] ,
+			[Projectstobeinitiated4] as [Projects to be initiated] ,
+			[ProjectClosed4] as [Project Closed] ,
+			[TotalQNSAmount(USD)projected4]  as [Total QNS Amount (USD) projected] ,
+			[TotalQNSAmount(USD)Signedoff/Realised4]   AS   [Total QNS Amount (USD) Signed off/Realised]
+			 from #QResultTotal
+
+			 set @OutQuarter = 'Q4'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	end
+END
+ELSE IF (@Flag = 'BU Wise')
+BEGIN
+
+print 'insert'
+
+
+--SELECT * FROM @TempTotal
+
+
+
+
+insert into #QResult (vertical ,[Projectsinitiated_1]  ,[Projectsinitiated(%)1]   ,[Projectstobeinitiated1]  ,[ProjectClosed1]  ,[ProjectAddedonportal1]  ,[ProjectAddedonportal(%)1]   ,[TotalQNSAmount(USD)projected1]   ,[TotalQNSAmount(USD)Signedoff/Realised1]  )
+select 
+	VerticalName,[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+FROM #Q1
+
+
+insert into #QResult (vertical ,[Projectsinitiated_2]  ,[Projectsinitiated(%)2]   ,[Projectstobeinitiated2]  ,[ProjectClosed2]  ,[ProjectAddedonportal2]  ,[ProjectAddedonportal(%)2]   ,[TotalQNSAmount(USD)projected2]   ,[TotalQNSAmount(USD)Signedoff/Realised2]  )
+select 
+	VerticalName,[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+FROM #Q2
+
+
+insert into #QResult (vertical ,[Projectsinitiated_3]  ,[Projectsinitiated(%)3]   ,[Projectstobeinitiated3]  ,[ProjectClosed3]  ,[ProjectAddedonportal3]  ,[ProjectAddedonportal(%)3]   ,[TotalQNSAmount(USD)projected3]   ,[TotalQNSAmount(USD)Signedoff/Realised3]  )
+select 
+	VerticalName,[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+FROM #Q3
+
+insert into #QResult (vertical ,[Projectsinitiated_4]  ,[Projectsinitiated(%)4]   ,[Projectstobeinitiated4]  ,[ProjectClosed4]  ,[ProjectAddedonportal4]  ,[ProjectAddedonportal(%)4]   ,[TotalQNSAmount(USD)projected4]   ,[TotalQNSAmount(USD)Signedoff/Realised4]  )
+select 
+	VerticalName,[Projects initiated], [Projects initiated (%)],[Projects to be initiated],[Project Closed],
+	[Project Added on portal], [Project Added on portal (%)],[Total QNS Amount (USD) projected],[Total QNS Amount (USD) Signed off/Realised] 
+
+FROM #Q4
+
+--select * from #q1
+--select * from #q2
+--select * from #q3
+--select * from #q4
+--select * from #QResult
+
+
+
+insert into #QResultTotal
+select 'Grand Total'
+,sum(Projectsinitiated_1)  Projectsinitiated_1
+,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+,sum(Projectstobeinitiated1) Projectstobeinitiated1
+,sum(ProjectClosed1) ProjectClosed1
+,sum(ProjectAddedonportal1) ProjectAddedonportal1
+,sum([ProjectAddedonportal(%)1]) [ProjectAddedonportal(%)1]
+,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+,sum(Projectsinitiated_2) Projectsinitiated_2
+
+,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+,sum(Projectstobeinitiated2) Projectstobeinitiated2
+,sum(ProjectClosed2) ProjectClosed2
+,sum(ProjectAddedonportal2) ProjectAddedonportal2
+,sum([ProjectAddedonportal(%)2]) [ProjectAddedonportal(%)2]
+,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+,sum(Projectsinitiated_3) Projectsinitiated_3
+,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+,sum(Projectstobeinitiated3) Projectstobeinitiated3
+,sum(ProjectClosed3) ProjectClosed3
+,sum(ProjectAddedonportal3) ProjectAddedonportal3
+,sum([ProjectAddedonportal(%)3]) [ProjectAddedonportal(%)3]
+,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+,sum(Projectsinitiated_4) Projectsinitiated_4
+,sum([Projectsinitiated(%)4]) [Projectsinitiated(%)4]
+,sum([Projectstobeinitiated4]) [Projectstobeinitiated4]
+,sum(ProjectClosed4) ProjectClosed4
+,sum(ProjectAddedonportal4) ProjectAddedonportal4
+,sum([ProjectAddedonportal(%)4]) [ProjectAddedonportal(%)4]
+,sum([TotalQNSAmount(USD)projected4]) [TotalQNSAmount(USD)projected4]
+,sum([TotalQNSAmount(USD)Signedoff/Realised4])[TotalQNSAmount(USD)Signedoff/Realised4]
+
+from #QResult
+
+
+if(@FromDate = '' and  @ToDate = '' )
+	begin
+	print '1'
+	if (@Currentdate between @q1start and @q1end)
+		Begin
+		   print 'Q1'
+		  select 'Grand Total' as vertical
+			,sum(Projectsinitiated_1)  Projectsinitiated_1
+			,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+			,sum(Projectstobeinitiated1) Projectstobeinitiated1
+			,sum(ProjectClosed1) ProjectClosed1
+			,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q1'
+			 select  @OutQuarter As 'OutQuarter'
+		End
+		Else if(@Currentdate between @q2start and @q2end)
+		Begin
+		  print 'Q1Q2'
+		
+			select 'Grand Total' as vertical
+				,sum(Projectsinitiated_1) as Projectsinitiated_1
+				,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+				,sum(Projectstobeinitiated1) Projectstobeinitiated1
+				,sum(ProjectClosed1) ProjectClosed1
+				,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+				,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+
+				,sum(Projectsinitiated_2) Projectsinitiated_2
+				,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+				,sum(Projectstobeinitiated2) Projectstobeinitiated2
+				,sum(ProjectClosed2) ProjectClosed2
+				,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+				,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+				from #QResultTotal
+			 set @OutQuarter = 'Q1,Q2'
+			 select  @OutQuarter As 'OutQuarter'
+		End
+		Else if(@Currentdate between @q3start and @q3end)
+		Begin
+		  print 'Q1Q2Q3'
+		 select 'Grand Total' as vertical
+			,sum(Projectsinitiated_1)  Projectsinitiated_1
+			,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+			,sum(Projectstobeinitiated1) Projectstobeinitiated1
+			,sum(ProjectClosed1) ProjectClosed1
+			,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+
+			,sum(Projectsinitiated_2) Projectsinitiated_2
+			,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+			,sum(Projectstobeinitiated2) Projectstobeinitiated2
+			,sum(ProjectClosed2) ProjectClosed2
+			,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+
+			,sum(Projectsinitiated_3) Projectsinitiated_3
+			,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+			,sum(Projectstobeinitiated3) Projectstobeinitiated3
+			,sum(ProjectClosed3) ProjectClosed3
+			,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+			 from #QResultTotal
+			set @OutQuarter = 'Q1,Q2,Q3'
+			 select  @OutQuarter As 'OutQuarter'
+		End
+		Else if (@Currentdate between @q4start and @q4end)
+		Begin
+		  print 'Q1Q2Q3Q4'
+		
+			 select 'Grand Total' as vertical
+			,sum(Projectsinitiated_1)  Projectsinitiated_1
+			,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+			,sum(Projectstobeinitiated1) Projectstobeinitiated1
+			,sum(ProjectClosed1) ProjectClosed1
+			,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+
+			,sum(Projectsinitiated_2) Projectsinitiated_2
+			,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+			,sum(Projectstobeinitiated2) Projectstobeinitiated2
+			,sum(ProjectClosed2) ProjectClosed2
+			,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+
+			,sum(Projectsinitiated_3) Projectsinitiated_3
+			,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+			,sum(Projectstobeinitiated3) Projectstobeinitiated3
+			,sum(ProjectClosed3) ProjectClosed3
+			,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+
+			,sum(Projectsinitiated_4) Projectsinitiated_4
+			,sum([Projectsinitiated(%)4]) [Projectsinitiated(%)4]
+			,sum([Projectstobeinitiated4]) [Projectstobeinitiated4]
+			,sum(ProjectClosed4) ProjectClosed4
+			,sum([TotalQNSAmount(USD)projected4]) [TotalQNSAmount(USD)projected4]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised4])[TotalQNSAmount(USD)Signedoff/Realised4]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q1,Q2,Q3,Q4'
+			 select  @OutQuarter As 'OutQuarter'
+		End
+	end
+	else
+	begin
+	print '2'
+	 if((@FromDate between @q1start and @q1end) and (@ToDate between @q1start and @q1end) )
+	 Begin
+	   print @q1start 
+	   print @q1end
+	   print 'Only Q1'
+	   select 'Grand Total' as vertical
+			,sum(Projectsinitiated_1)  Projectsinitiated_1
+			,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+			,sum(Projectstobeinitiated1) Projectstobeinitiated1
+			,sum(ProjectClosed1) ProjectClosed1
+			,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q1'
+			 select  @OutQuarter As 'OutQuarter'
+	 end
+	 Else if ((@FromDate between @q1start and @q1end) and (@ToDate between @q2start and @q2end))
+	 Begin
+	   print @q1start 
+	   print @q2end
+	   print 'Only Q1Q2'
+	  select 'Grand Total' as vertical
+			,sum(Projectsinitiated_1)  Projectsinitiated_1
+			,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+			,sum(Projectstobeinitiated1) Projectstobeinitiated1
+			,sum(ProjectClosed1) ProjectClosed1
+			,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+
+			,sum(Projectsinitiated_2) Projectsinitiated_2
+			,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+			,sum(Projectstobeinitiated2) Projectstobeinitiated2
+			,sum(ProjectClosed2) ProjectClosed2
+			,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q1,Q2'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q1start and @q1end) and (@ToDate between @q3start and @q3end))
+	 Begin
+	   print @q1start 
+	   print @q3end
+	   print 'Only Q1Q2Q3'
+	   
+			select 'Grand Total' as vertical
+			,sum(Projectsinitiated_1)  Projectsinitiated_1
+			,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+			,sum(Projectstobeinitiated1) Projectstobeinitiated1
+			,sum(ProjectClosed1) ProjectClosed1
+			,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+
+			,sum(Projectsinitiated_2) Projectsinitiated_2
+			,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+			,sum(Projectstobeinitiated2) Projectstobeinitiated2
+			,sum(ProjectClosed2) ProjectClosed2
+			,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+
+			,sum(Projectsinitiated_3) Projectsinitiated_3
+			,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+			,sum(Projectstobeinitiated3) Projectstobeinitiated3
+			,sum(ProjectClosed3) ProjectClosed3
+			,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+			 from #QResultTotal
+			set @OutQuarter = 'Q1,Q2,Q3'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q1start and @q1end) and (@ToDate between @q4start and @q4end))
+	 Begin
+	   print @q1start 
+	   print @q4end
+	    print 'Only Q1Q2Q3Q4'
+	  
+			select 'Grand Total' as vertical
+			,sum(Projectsinitiated_1)  Projectsinitiated_1
+			,sum([Projectsinitiated(%)1]) [Projectsinitiated(%)1]
+			,sum(Projectstobeinitiated1) Projectstobeinitiated1
+			,sum(ProjectClosed1) ProjectClosed1
+			,sum([TotalQNSAmount(USD)projected1]) [TotalQNSAmount(USD)projected1]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised1]) [TotalQNSAmount(USD)Signedoff/Realised1]
+
+			,sum(Projectsinitiated_2) Projectsinitiated_2
+			,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+			,sum(Projectstobeinitiated2) Projectstobeinitiated2
+			,sum(ProjectClosed2) ProjectClosed2
+			,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+
+			,sum(Projectsinitiated_3) Projectsinitiated_3
+			,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+			,sum(Projectstobeinitiated3) Projectstobeinitiated3
+			,sum(ProjectClosed3) ProjectClosed3
+			,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+
+			,sum(Projectsinitiated_4) Projectsinitiated_4
+			,sum([Projectsinitiated(%)4]) [Projectsinitiated(%)4]
+			,sum([Projectstobeinitiated4]) [Projectstobeinitiated4]
+			,sum(ProjectClosed4) ProjectClosed4
+			,sum([TotalQNSAmount(USD)projected4]) [TotalQNSAmount(USD)projected4]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised4])[TotalQNSAmount(USD)Signedoff/Realised4]
+			 from #QResultTotal
+
+			 set @OutQuarter = 'Q1,Q2,Q3,Q4'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q2start and @q2end) and (@ToDate between @q2start and @q2end))
+	 Begin
+	   print @q2start 
+	   print @q2end
+	    print 'Only Q2'
+	   select 'Grand Total' as vertical
+			,sum(Projectsinitiated_2) Projectsinitiated_2
+			,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+			,sum(Projectstobeinitiated2) Projectstobeinitiated2
+			,sum(ProjectClosed2) ProjectClosed2
+			,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q2'
+			 select  @OutQuarter As 'OutQuarter' 
+	 End
+	 Else if ((@FromDate between @q2start and @q2end) and (@Tomonth between @q3start and @q3end))
+	 Begin
+	   print @q2start 
+	   print @q3end
+	    print 'Only Q2Q3'
+	   select 'Grand Total' as vertical
+			,sum(Projectsinitiated_2) Projectsinitiated_2
+			,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+			,sum(Projectstobeinitiated2) Projectstobeinitiated2
+			,sum(ProjectClosed2) ProjectClosed2
+			,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+
+			,sum(Projectsinitiated_3) Projectsinitiated_3
+			,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+			,sum(Projectstobeinitiated3) Projectstobeinitiated3
+			,sum(ProjectClosed3) ProjectClosed3
+			,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+			 from #QResultTotal
+			set @OutQuarter = 'Q2,Q3'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q2start and @q2end) and (@ToDate between @q4start and @q4end))
+	 Begin
+	   print @q2start 
+	   print @q4end
+	    print 'Only Q2Q3Q4'
+	   select 'Grand Total' as vertical
+			,sum(Projectsinitiated_2) Projectsinitiated_2
+			,sum([Projectsinitiated(%)2]) [Projectsinitiated(%)2]
+			,sum(Projectstobeinitiated2) Projectstobeinitiated2
+			,sum(ProjectClosed2) ProjectClosed2
+			,sum([TotalQNSAmount(USD)projected2]) [TotalQNSAmount(USD)projected2]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised2]) [TotalQNSAmount(USD)Signedoff/Realised2]
+
+			,sum(Projectsinitiated_3) Projectsinitiated_3
+			,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+			,sum(Projectstobeinitiated3) Projectstobeinitiated3
+			,sum(ProjectClosed3) ProjectClosed3
+			,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+
+			,sum(Projectsinitiated_4) Projectsinitiated_4
+			,sum([Projectsinitiated(%)4]) [Projectsinitiated(%)4]
+			,sum([Projectstobeinitiated4]) [Projectstobeinitiated4]
+			,sum(ProjectClosed4) ProjectClosed4
+			,sum([TotalQNSAmount(USD)projected4]) [TotalQNSAmount(USD)projected4]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised4])[TotalQNSAmount(USD)Signedoff/Realised4]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q2,Q3,Q4'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q3start and @q3end) and (@ToDate between @q3start and @q3end))
+	 Begin
+	   print @q3start 
+	   print @q3end
+	    print 'Only Q3'
+		select 'Grand Total' as vertical
+			,sum(Projectsinitiated_3) Projectsinitiated_3
+			,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+			,sum(Projectstobeinitiated3) Projectstobeinitiated3
+			,sum(ProjectClosed3) ProjectClosed3
+			,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+			 from #QResultTotal
+			set @OutQuarter = 'Q3'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q3start and @q3end) and (@ToDate between @q4start and @q4end))
+	 Begin
+	   print @q3start 
+	   print @q4end
+	    print 'Only Q3Q4'
+	   select 'Grand Total' as vertical
+			,sum(Projectsinitiated_3) Projectsinitiated_3
+			,sum([Projectsinitiated(%)3]) [Projectsinitiated(%)3]
+			,sum(Projectstobeinitiated3) Projectstobeinitiated3
+			,sum(ProjectClosed3) ProjectClosed3
+			,sum([TotalQNSAmount(USD)projected3]) [TotalQNSAmount(USD)projected3]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised3]) [TotalQNSAmount(USD)Signedoff/Realised3]
+
+			,sum(Projectsinitiated_4) Projectsinitiated_4
+			,sum([Projectsinitiated(%)4]) [Projectsinitiated(%)4]
+			,sum([Projectstobeinitiated4]) [Projectstobeinitiated4]
+			,sum(ProjectClosed4) ProjectClosed4
+			,sum([TotalQNSAmount(USD)projected4]) [TotalQNSAmount(USD)projected4]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised4])[TotalQNSAmount(USD)Signedoff/Realised4]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q3,Q4'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	 Else if ((@FromDate between @q4start and @q4end) and (@ToDate between @q4start and @q4end))
+	 Begin
+	   print @q4start 
+	   print @q4end
+	    print 'Only Q4'
+	    select 'Grand Total' as vertical
+			,sum(Projectsinitiated_4) Projectsinitiated_4
+			,sum([Projectsinitiated(%)4]) [Projectsinitiated(%)4]
+			,sum([Projectstobeinitiated4]) [Projectstobeinitiated4]
+			,sum(ProjectClosed4) ProjectClosed4
+			,sum([TotalQNSAmount(USD)projected4]) [TotalQNSAmount(USD)projected4]
+			,sum([TotalQNSAmount(USD)Signedoff/Realised4])[TotalQNSAmount(USD)Signedoff/Realised4]
+			 from #QResultTotal
+			 set @OutQuarter = 'Q4'
+			 select  @OutQuarter As 'OutQuarter'
+	 End
+	end
+END
+END
+3.ALTER PROCEDURE [dbo].[Proc_GetAdditionalDetails]
+	-- Add the parameters for the stored procedure here
+	@ProjectID int= 0,
+	@QnsId int = 0,
+	@Flag varchar(100)
+	
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	SET NOCOUNT ON;
+
+    -- Insert statements for procedure here
+	IF(@Flag = 'GetAddionalDetails')
+		BEGIN
+			select BillingModelID,MeasureOfSuccess,MetricBaselinePerformance,ProjectTargetPerformance,ProjectMetric,ControlPhaseAchievedPerformance,ProjectTagId,IsProductivityProject
+			from projectdetails where Projectid = @ProjectID
+		END
+	ELSE IF(@Flag = 'getGriddetails')
+		BEGIN
+			Declare @BWProjectID nvarchar(20)
+			set @BWProjectID='BW'+cast (@ProjectID as nvarchar(20))
+			print @BWProjectID
+
+			Declare @FSProjectID nvarchar(20)
+			set @FSProjectID='FS'+cast (@ProjectID as nvarchar(20))
+			print @FSProjectID
+
+			SELECT distinct 
+			  --      case
+					--  when TQNS.ProjectCategory='Brainwave' then TQNS.Brainwaveno
+					--  when TQNS.ProjectCategory<>'Brainwave' then TQNS.ProjectID 
+					--end as 'ProjectID', 
+					TQNS.ProjectID,
+			        TQNS.QNSID,isnull(QNSB.MethodID,0) as [QNSMethodologyId],
+					isnull(AQT.QNSType,'Hard QNS WNS') as QNSType,
+					BenefitType,
+					----This parameter has been added for brainwave bpet integarion on 8 Jun 2018
+					----(when we add qns from brainwave its themeid getting captured in subcatogory so dont want to change existing flow
+					----so we introduced new column called "BrainwaveLeverID" and maiantaining LeverID )
+					----Changes starts here
+					SC.SubCategory AS [ProjectLever],
+					----Changes ends here	
+					SubLever AS [ProjectSubLever],
+					isnull(QM.MethodDesc,'-') AS [QNSMethodology],
+					ISNULL(TQNS.ProjectedQNS,0) as TentativeQNS,
+					QS.Status As QNSStatus,
+				
+					case
+					when QNSB.MethodStatus is null  or   QNSAc.MonthlyTrackerStatusID is null  then  0
+					when QNSB.MethodStatus = 36  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 36  then  36
+					when QNSB.MethodStatus = 35  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 35  then  35
+					when QNSB.MethodStatus = 34  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 34  then  34 
+					when QNSB.MethodStatus = 28  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 28  then  28
+					when QNSB.MethodStatus = 30  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 30  then  30
+					when QNSB.MethodStatus = 29  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 29  then  29
+					when QNSB.MethodStatus = 31  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 31  then  31
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 42  then 42 
+					end as 'MonthlyTrackerStatusID',
+					case 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 34  and  QNSB.MethodStatus = 34  then 'Monthly QNS Pending for approval' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 35  and  QNSB.MethodStatus = 35  then 'Monthly QNS Pending for approval' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 36  and  QNSB.MethodStatus = 36  then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 31  and  QNSB.MethodStatus = 31  then 'Monthly QNS Rejected' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 29  and  QNSB.MethodStatus = 29  then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 30  and  QNSB.MethodStatus = 30  then 'Monthly QNS Approved'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 43  and  QNSB.MethodStatus = 43  then 'Final Submission'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 28  and  QNSB.MethodStatus = 28  then 'Monthly QNS Approved'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 42   then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 34  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Pending for approval' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 35  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Pending for approval' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 36  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 31  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Rejected' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 29  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 30  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Approved'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 43  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Final Submission'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 28  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Approved'
+					when QNSB.MethodStatus = 36  and  TQNS.ActualQNS = 0.00 then 'QNS Methodology Pending for approval' 
+					when QNSB.MethodStatus = 36  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then case when TQNS.BenefitTypeId  = 4 then 'QNS Methodology Pending for approval' else 'Monthly QNS Pending for approval' end 
+					when QNSB.MethodStatus = 35  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Pending for approval'
+					when QNSB.MethodStatus = 34  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Pending for approval'  
+					when QNSB.MethodStatus = 28  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Approved' 
+					when QNSB.MethodStatus = 30  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Approved' 
+					when QNSB.MethodStatus = 29  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Kept on Hold'
+					when QNSB.MethodStatus = 31  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Rejected'
+					when QNSB.MethodStatus=11 then    'QNS methodology Pending for Approval'
+					when QNSB.MethodStatus=12 then    'QNS Rejected'
+					when  isnull(pd.MonthlyTrackerStatus,0) = 31   then 'Methodology Pending for Approval' 
+					 end as 'QNS Status Latest',
+					--case  
+					--when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 42  then 'Monthly QNS Pending for approval'
+					--when QNSB.MethodStatus = 36  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 36  then  'QNS Methodology Pending for approval' 
+					--when QNSB.MethodStatus = 35  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 35  then  'QNS Methodology Pending for approval'
+					--when QNSB.MethodStatus = 34  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 34  then  'QNS Methodology Pending for approval'  
+					--when QNSB.MethodStatus = 28  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 28  then  'QNS Methodology Approved' 
+					--when QNSB.MethodStatus = 30  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 30  then  'QNS Methodology Approved' 
+					--when QNSB.MethodStatus = 29  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 29  then  'QNS Methodology Kept on Hold'
+					--when QNSB.MethodStatus = 31  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 31  then  'QNS Methodology Rejected'
+					-- end  as 'QNS Status Latest',
+					
+					isnull(TQNS.BenefitTypeId,0) as BenefitTypeId
+					FROM TX_QNS TQNS
+			inner JOIN TX_QNSBenefits QNSB WITH (NOLOCK) ON QNSB.QNSID = TQNS.QNSID
+			left JOIN AppQNSType AQT WITH (NOLOCK) ON AQT.AppQNSTypeID = QNSB.QNSTypeID
+			left JOIN TM_QNSMethods QM WITH (NOLOCK) ON QM.MethodID = QNSB.MethodID
+			left join TM_BenefitType BT WITH (NOLOCK) ON BT.BenefitTypeID = TQNS.BenefitTypeId
+			----This parameter has been added for brainwave bpet integarion on 8 Jun 2018
+			----(when we add qns from brainwave its themeid getting captured in subcatogory so dont want to change existing flow
+			----so we introduced new column called "BrainwaveLeverID" and maiantaining LeverID )
+			----Changes starts here			
+			left JOIN AppSubCategory SC WITH (NOLOCK) ON SC.AppSubCategoryid = TQNS.BrainwaveLeverId
+			----Changes ends here 
+			left join TX_QNSActualsDetails QNSAc WITH (NOLOCK) ON TQNS.QNSID=QNSAc.QNSId  and [Month] = datename(mm,getdate()) and QNSYear=year(getdate())
+			left join TM_QNSStatus QS WITH (NOLOCK) ON QS.statusID=TQNS.StatusID
+			left JOIN TM_SubLever SL WITH (NOLOCK) ON SL.SubLeverID = TQNS.SubLeverId
+			inner join ProjectDetails pd on pd.ProjectID = TQNS.ProjectID
+			where (TQNS.Projectid = @ProjectID OR TQNS.QNSID=@QnsId OR TQNS.Brainwaveno= @BWProjectID OR TQNS.Brainwaveno=@FSProjectID) 
+			--and QNSB.MethodStatus <> 34
+			--and (QNSB.MethodStatus <> 34 or isnull(pd.IsProjection,0) =0) --and  isnull(TQNS.ProjectedStartMonth,'')<>'' 
+			
+		END
+	ELSE IF(@Flag = 'getQnsdetails')
+	BEGIN
+		SELECT distinct isnull(emp.Firstname+' '+emp.LastName,'-') as [Process Owner],
+			   emp1.Firstname+' '+emp1.LastName as [MBB],
+			   emp2.Firstname+' '+emp2.LastName as [Vertical Finance],
+			   Savings,cost,ProjectedStartMonth,ActualStartMonth,ProjectedComments,ActualComments,
+			   TQNS.AnnualizedSignOff,
+				--case 
+				--	when TQNS.CommentsByFinSPOC is null or TQNS.CommentsByFinSPOC = '' 
+				--	then ''
+				--	else TQNS.CommentsByFinSPOC  +'-(' +TQNS.CreatedDate+')'  
+				--end as [Comments By BU Finance]
+				case 
+					when (isnull(Ltrim(TQNS.CommentsByFinSPOC),'')='') 
+					then ''
+					else TQNS.CommentsByFinSPOC  +' '+ case when isnull(TQNS.CreatedDate,'')='' then '' else '-(' + TQNS.CreatedDate + ')'end   
+				end as [Comments By BU Finance]
+				,tqns.SVPID,tqns.ChampionID
+			   FROM TX_QNS TQNS
+		 inner join TX_QNSBenefits QNSB on QNSB.QNSID = TQNS.QNSID
+		 left Join Employee emp   WITH (NOLOCK) on  emp.EmployeeId=tqns.ChampionID
+		 left Join Employee emp1   WITH (NOLOCK) on  emp1.EmployeeId=tqns.MBBID  
+		 left Join Employee emp2   WITH (NOLOCK) on  emp2.EmployeeId=tqns.VFinanceID 
+		--select FirstName + '' + MiddleName + '' + LastName from Employee where EmployeeId = 212075 
+		where TQNS.Projectid = @ProjectID  and TQNS.QNSID = @QnsId 
+
+
+
+
+
+			declare @date date
+			set @date=getdate()
+
+			Declare @QNSYear int,@QNSYearNext int  
+		
+
+			set @QNSYear=Year(@date) 
+			set @QNSYearNext=Year(@date) + 1 
+
+			declare @t as table
+			(
+			MonthId int,
+			[MonthName] varchar(250)
+			)
+
+			insert into @t 
+			values(1,'January'),(2,'February'),(3,'March'),(4,'April'),(5,'May'),(6,'June'),
+			(7,'July'),(8,'August'),(9,'September'),(10,'October'),(11,'November'),(12,'December')
+
+			--select * from @t
+			--select [MonthName] from @t where MonthId >= month(@date)
+
+			declare @c int
+			set @c= (select count(1) from @t where MonthId >= month(@date))
+			print @c
+			print @QNSYear 
+			print @QNSYearNext 
+
+			declare @GoLIve datetime,@QNSCompletionDate datetime
+set @GoLIve=(select top 1 GoLive from TM_Application)
+--Declare @QNSID int
+ 
+
+ --below line commented for Bug Id 13561
+ --select top 1 @QNSID=QNSID  from TX_QNS(nolock) where ProjectID=@ProjectID and ProjectCategory<>'Brainwave' 
+ select @QNSID=@QnsId
+ 
+ select top 1 @QNSCompletionDate=case when CompletionDate is not null then CompletionDate else CreatedDate end  from TX_QNS(nolock) where QNSID=@QNSID
+
+ print @QNSID
+ print @QNSCompletionDate
+ print @GoLIve
+ if( @QNSCompletionDate < @GoLIve)
+ begin
+ print '1'
+			select [Projected QNS(Total)],[Month],ProjectedQNS,[MonthlyTrackerStatus]  from(
+			select tqns.ProjectedQNS as [Projected QNS(Total)],[Month],TQNSPD.ProjectedQNS, QnsYear,MonthID,
+			(select ProjStatus from TM_ProjectStatus p where p.ProjStatusID=TQNSPD.MonthlyTrackerStatusID) as [MonthlyTrackerStatus] 
+			from TX_QNSProjectedDetails TQNSPD 
+			--inner join ProjectDetails prj on tqns.ProjectID =prj.ProjectID 
+			inner join TX_QNS tqns on tqns.QNSID =TQNSPD.QNSId 
+			inner join @t T on T.[MonthName]=[Month]
+			where TQNSPD.QNSId  = @QnsId 
+			and [Month] in (select [MonthName] from @t where MonthId >= month(ProjectedStartMonth)) and QnsYear=@QNSYear
+			union 
+			select tqns.TentativeQNS as [Projected QNS(Total)],[Month],TQNSPD.ProjectedQNS,QnsYear ,MonthID,
+			(select ProjStatus from TM_ProjectStatus p where p.ProjStatusID=TQNSPD.MonthlyTrackerStatusID) as [MonthlyTrackerStatus] 
+			from TX_QNSProjectedDetails TQNSPD 
+			inner join TX_QNS tqns on tqns.QNSID =TQNSPD.QNSId 
+			inner join @t T on T.[MonthName]=[Month]
+			where TQNSPD.QNSId  = @QnsId 
+		--	and [Month] in (select [MonthName] from @t where MonthId <= (12-@c)) and QnsYear=@QNSYearNext 
+		and [Month] in (select [MonthName] from @t where MonthId < month(ProjectedStartMonth)) and QnsYear=@QNSYearNext 
+			)Temp
+			order by QnsYear,MonthID
+
+end
+else
+begin
+print '2'
+	select [Projected QNS(Total)],[Month],ProjectedQNS,[MonthlyTrackerStatus]  from(
+			select tqns.ProjectedQNS as [Projected QNS(Total)],[Month],TQNSPD.ProjectedQNS, QnsYear,MonthID,
+			(select ProjStatus from TM_ProjectStatus p where p.ProjStatusID=TQNSPD.MonthlyTrackerStatusID) as [MonthlyTrackerStatus] 
+			from TX_QNSProjectedDetails TQNSPD 
+			inner join TX_QNS tqns on tqns.QNSID =TQNSPD.QNSId 
+			inner join @t T on T.[MonthName]=[Month]
+			where TQNSPD.QNSId  = @QnsId 
+			and [Month] in (select [MonthName] from @t where MonthId >= month(ProjectedStartMonth)) and QnsYear=@QNSYear
+			union 
+			select tqns.ProjectedQNS as [Projected QNS(Total)],[Month],TQNSPD.ProjectedQNS,QnsYear ,MonthID,
+			(select ProjStatus from TM_ProjectStatus p where p.ProjStatusID=TQNSPD.MonthlyTrackerStatusID) as [MonthlyTrackerStatus] 
+			from TX_QNSProjectedDetails TQNSPD 
+			inner join TX_QNS tqns on tqns.QNSID =TQNSPD.QNSId 
+			inner join @t T on T.[MonthName]=[Month]
+			where TQNSPD.QNSId  = @QnsId 
+		--	and [Month] in (select [MonthName] from @t where MonthId <= (12-@c)) and QnsYear=@QNSYearNext 
+		and [Month] in (select [MonthName] from @t where MonthId < month(ProjectedStartMonth)) and QnsYear=@QNSYearNext 
+			)Temp
+			order by QnsYear,MonthID
+end
+
+if( @QNSCompletionDate < @GoLIve)
+ begin
+ print '3'
+			select [Actual QNS(Total)],[Month],ActualQNS,[MonthlyTrackerStatus] ,MonthlyTrackerStatusID from(
+			select b.Savings as [Actual QNS(Total)],[Month],TQNSPD.ActualQNS, QnsYear,MonthID,
+			(select ProjStatus from TM_ProjectStatus p where p.ProjStatusID=TQNSPD.MonthlyTrackerStatusID) as [MonthlyTrackerStatus],MonthlyTrackerStatusID 
+			from TX_QNSActualsDetails TQNSPD 
+			inner join TX_QNS tqns on tqns.QNSID =TQNSPD.QNSId 
+			inner join tx_qnsbenefits b on tqns.QNSID =b.QNSId 
+			inner join @t T on T.[MonthName]=[Month]
+			where TQNSPD.QNSId  = @QnsId 
+			and [Month] in (select [MonthName] from @t where MonthId >= month(ActualStartMonth)) and QnsYear=@QNSYear
+			union 
+			select  b.Savings as [Actual QNS(Total)],[Month],TQNSPD.ActualQNS, QnsYear,MonthID,
+			(select ProjStatus from TM_ProjectStatus p where p.ProjStatusID=TQNSPD.MonthlyTrackerStatusID) as [MonthlyTrackerStatus],MonthlyTrackerStatusID 
+			from TX_QNSActualsDetails TQNSPD 
+			inner join TX_QNS tqns on tqns.QNSID =TQNSPD.QNSId 
+			inner join tx_qnsbenefits b on tqns.QNSID =b.QNSId 
+			inner join @t T on T.[MonthName]=[Month]
+			where TQNSPD.QNSId  = @QnsId 
+			and [Month] in (select [MonthName] from @t where MonthId <  ( month(ActualStartMonth)))  and QnsYear=@QNSYearNext 
+			)Temp
+			order by QnsYear,MonthID
+end
+else
+begin
+select [Actual QNS(Total)],[Month],ActualQNS,[MonthlyTrackerStatus] ,MonthlyTrackerStatusID from(
+			select tqns.ActualQNS as [Actual QNS(Total)],[Month],TQNSPD.ActualQNS, QnsYear,MonthID,
+			(select ProjStatus from TM_ProjectStatus p where p.ProjStatusID=TQNSPD.MonthlyTrackerStatusID) as [MonthlyTrackerStatus],MonthlyTrackerStatusID 
+			from TX_QNSActualsDetails TQNSPD 
+			inner join TX_QNS tqns on tqns.QNSID =TQNSPD.QNSId 
+			inner join @t T on T.[MonthName]=[Month]
+			where TQNSPD.QNSId  = @QnsId 
+			and [Month] in (select [MonthName] from @t where MonthId >= month(ActualStartMonth)) and QnsYear=@QNSYear
+			union 
+			select tqns.ActualQNS as [Actual QNS(Total)],[Month],TQNSPD.ActualQNS, QnsYear,MonthID,
+			(select ProjStatus from TM_ProjectStatus p where p.ProjStatusID=TQNSPD.MonthlyTrackerStatusID) as [MonthlyTrackerStatus],MonthlyTrackerStatusID 
+			from TX_QNSActualsDetails TQNSPD 
+			inner join TX_QNS tqns on tqns.QNSID =TQNSPD.QNSId 
+			inner join @t T on T.[MonthName]=[Month]
+			where TQNSPD.QNSId  = @QnsId 
+			and [Month] in (select [MonthName] from @t where MonthId <  ( month(ActualStartMonth)))  and QnsYear=@QNSYearNext 
+			)Temp
+			order by QnsYear,MonthID
+end
+
+		--select tqns.ActualQNS as [Actual QNS(Total)],Month,TQNSPD.ActualQNS,
+		--(select ProjStatus from TM_ProjectStatus p where p.ProjStatusID=TQNSPD.MonthlyTrackerStatusID) as [MonthlyTrackerStatus],MonthlyTrackerStatusID
+		-- from TX_QNSActualsDetails TQNSPD
+		--inner join TX_QNS tqns on tqns.QNSID =TQNSPD.QNSId
+		--where  TQNSPD.QNSId = @QnsId
+	END
+	
+	else if (@Flag='getGriddetailsForEdit')
+	begin
+		Declare @BWProjectID1 nvarchar(20)
+			set @BWProjectID1='BW'+cast (@ProjectID as nvarchar(20))
+			print @BWProjectID1
+			SELECT distinct 
+			  --      case
+					--  when TQNS.ProjectCategory='Brainwave' then TQNS.Brainwaveno
+					--  when TQNS.ProjectCategory<>'Brainwave' then TQNS.ProjectID 
+					--end as 'ProjectID', 
+					TQNS.ProjectID,
+			        TQNS.QNSID,isnull(QNSB.MethodID,0) as [QNSMethodologyId],
+					isnull(AQT.QNSType,'Hard QNS WNS') as QNSType,
+					BenefitType,
+					----This parameter has been added for brainwave bpet integarion on 8 Jun 2018
+					----(when we add qns from brainwave its themeid getting captured in subcatogory so dont want to change existing flow
+					----so we introduced new column called "BrainwaveLeverID" and maiantaining LeverID )
+					----Changes starts here
+					SC.SubCategory AS [ProjectLever],
+					----Changes ends here	
+					SubLever AS [ProjectSubLever],
+					isnull(QM.MethodDesc,'-') AS [QNSMethodology],
+					ISNULL(TQNS.ProjectedQNS,0) as TentativeQNS,
+					QS.Status As QNSStatus,
+				
+					case
+					when QNSB.MethodStatus is null  or   QNSAc.MonthlyTrackerStatusID is null  then  0
+					when QNSB.MethodStatus = 36  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 36  then  36
+					when QNSB.MethodStatus = 35  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 35  then  35
+					when QNSB.MethodStatus = 34  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 34  then  34 
+					when QNSB.MethodStatus = 28  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 28  then  28
+					when QNSB.MethodStatus = 30  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 30  then  30
+					when QNSB.MethodStatus = 29  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 29  then  29
+					when QNSB.MethodStatus = 31  or   isnull(QNSAc.MonthlyTrackerStatusID,0) = 31  then  31
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 42  then 42 
+					end as 'MonthlyTrackerStatusID',
+					case  
+					when  isnull(pd.MonthlyTrackerStatus,0) = 31   then 'Methodology Pending for Approval' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 34  and  QNSB.MethodStatus = 34  then 'Monthly QNS Pending for approval' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 35  and  QNSB.MethodStatus = 35  then 'Monthly QNS Pending for approval' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 36  and  QNSB.MethodStatus = 36  then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 31  and  QNSB.MethodStatus = 31  then 'Monthly QNS Rejected' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 29  and  QNSB.MethodStatus = 29  then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 30  and  QNSB.MethodStatus = 30  then 'Monthly QNS Approved'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 43  and  QNSB.MethodStatus = 43  then 'Final Submission'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 28  and  QNSB.MethodStatus = 28  then 'Monthly QNS Approved'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 42   then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 34  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Pending for approval' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 35  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Pending for approval' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 36  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 31  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Rejected' 
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 29  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Pending for approval'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 30  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Approved'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 43  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Final Submission'
+					when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 28  and ( QNSB.MethodStatus = 28 or   QNSB.MethodStatus = 30 )  then 'Monthly QNS Approved'
+					when QNSB.MethodStatus = 36  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Pending for approval' 
+					when QNSB.MethodStatus = 35  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Pending for approval'
+					when QNSB.MethodStatus = 34  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Pending for approval'  
+					when QNSB.MethodStatus = 28  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Approved' 
+					when QNSB.MethodStatus = 30  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Approved' 
+					when QNSB.MethodStatus = 29  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Kept on Hold'
+					when QNSB.MethodStatus = 31  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 0 then  'QNS Methodology Rejected'
+					when QNSB.MethodStatus=11 then    'QNS methodology Pending for Approval'
+					when QNSB.MethodStatus=12 then    'QNS Rejected'
+					 end as 'QNS Status Latest',
+					--case  
+					--when  isnull(QNSAc.MonthlyTrackerStatusID,0) = 42  then 'Monthly QNS Pending for approval'
+					--when QNSB.MethodStatus = 36  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 36  then  'QNS Methodology Pending for approval' 
+					--when QNSB.MethodStatus = 35  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 35  then  'QNS Methodology Pending for approval'
+					--when QNSB.MethodStatus = 34  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 34  then  'QNS Methodology Pending for approval'  
+					--when QNSB.MethodStatus = 28  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 28  then  'QNS Methodology Approved' 
+					--when QNSB.MethodStatus = 30  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 30  then  'QNS Methodology Approved' 
+					--when QNSB.MethodStatus = 29  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 29  then  'QNS Methodology Kept on Hold'
+					--when QNSB.MethodStatus = 31  and   isnull(QNSAc.MonthlyTrackerStatusID,0) = 31  then  'QNS Methodology Rejected'
+					-- end  as 'QNS Status Latest',
+					
+					isnull(TQNS.BenefitTypeId,0) as BenefitTypeId
+					FROM TX_QNS TQNS
+			inner JOIN TX_QNSBenefits QNSB WITH (NOLOCK) ON QNSB.QNSID = TQNS.QNSID
+			left JOIN AppQNSType AQT WITH (NOLOCK) ON AQT.AppQNSTypeID = QNSB.QNSTypeID
+			left JOIN TM_QNSMethods QM WITH (NOLOCK) ON QM.MethodID = QNSB.MethodID
+			left join TM_BenefitType BT WITH (NOLOCK) ON BT.BenefitTypeID = TQNS.BenefitTypeId
+			----This parameter has been added for brainwave bpet integarion on 8 Jun 2018
+			----(when we add qns from brainwave its themeid getting captured in subcatogory so dont want to change existing flow
+			----so we introduced new column called "BrainwaveLeverID" and maiantaining LeverID )
+			----Changes starts here			
+			left JOIN AppSubCategory SC WITH (NOLOCK) ON SC.AppSubCategoryid = TQNS.BrainwaveLeverId
+			----Changes ends here 
+			left join TX_QNSActualsDetails QNSAc WITH (NOLOCK) ON TQNS.QNSID=QNSAc.QNSId  and [Month] = datename(mm,getdate()) and QNSYear=year(getdate())
+			left join TM_QNSStatus QS WITH (NOLOCK) ON QS.statusID=TQNS.StatusID
+			left JOIN TM_SubLever SL WITH (NOLOCK) ON SL.SubLeverID = TQNS.SubLeverId
+			inner join ProjectDetails pd on pd.ProjectID = TQNS.ProjectID
+			where (TQNS.Projectid = @ProjectID OR TQNS.QNSID=@QnsId OR TQNS.Brainwaveno= @BWProjectID1) 
+			and QNSB.MethodStatus <> 34
+			--and (QNSB.MethodStatus <> 34 or isnull(pd.IsProjection,0) =0) --and  isnull(TQNS.ProjectedStartMonth,'')<>'' 
+			
+	end
+	
+
+		--SELECT * FROM TM_QNSMethods
+END
+
+4.for autocomplete extender
+SELECT EMPLID,Employeename  FROM ps_z_ecom_vw WHERE EmployeeName like @prefixText + '%'  or emplid like @prefixText + '%'
