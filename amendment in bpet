@@ -1,0 +1,1150 @@
+USE [BPETTrackerPROD_Test]
+GO
+/****** Object:  StoredProcedure [dbo].[Proc_GetAmendmentDetails]    Script Date: 9/13/2018 11:18:25 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+-- =============================================
+-- Author:		<Rohti mishra>
+-- Create date: <5 may 2018>
+-- Description:	<Get amendment etails based on bu quality and bu finance role >
+-- exec Proc_GetAmendmentDetails 'Vertical Wise','BPET PMO','2018-03-25','2018-05-31','Banking & Financial Services',''
+-- exec Proc_GetAmendmentDetails 'Vertical Wise','BPET PMO','','','','90498'
+-- exec Proc_GetAmendmentDetails 'BU wise','BPET PMO','','','','204505'
+-- exec Proc_GetAmendmentDetails 'BU wise','BPET PMO','2018-05-25','2018-06-30','EU-GTP',''
+-- exec Proc_GetAmendmentDetails 'Vertical Wise','BPET PMO','2018-01-07','2018-07-21','Banking & Financial Services','251281'
+-- exec Proc_GetAmendmentDetails 'Vertical Wise','BPET PMO','','','','251281'
+-- =============================================
+ALTER PROCEDURE [dbo].[Proc_GetAmendmentDetails] 
+	-- Add the parameters for the stored procedure here
+		@Flag varchar(20) = null,
+		@RoleFlag varchar(20) = null,
+		@FromMonth date = null ,
+		@ToMonth date = null,
+	    @Vertical varchar(1000) = null,
+		@EmployeeID varchar(100) = null
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	SET NOCOUNT ON;
+	DECLARE @MonthStartDate varchar(100);
+	Declare @FromDate date,@ToDate date
+
+	
+
+
+	Begin
+		IF(@Vertical = ''  and @FromMonth = '' and @ToMonth = '')
+			BEGIN
+			print ' no vertical'
+				SET @Vertical = NULL
+				SET @MonthStartDate = (SELECT DATEADD(month, DATEDIFF(month, 0, getdate()), 0) AS StartOfMonth)     --to get current month start date
+				SET @FromMonth = @MonthStartDate
+				SET @ToMonth = getdate()
+			END
+		ELSE IF(@Vertical <> '' and @FromMonth ='' and @ToMonth = '')
+			BEGIN
+			print 'vertical'
+				SET @MonthStartDate = (SELECT DATEADD(month, DATEDIFF(month, 0, getdate()), 0) AS StartOfMonth)     --to get current month start date
+				SET @FromMonth = @MonthStartDate
+				SET @ToMonth = getdate()
+			END
+		End
+
+
+		Set @FromDate = @FromMonth
+		Set @ToDate=@ToMonth
+		print @FromDate
+		print @ToDate
+
+		
+	Declare @QualityTable table
+	(
+	[BU/Vertical] varchar(100),
+	[Sub Category-productivity Theme] int,
+	[WNS QNS Type] int,
+	[QNS Realization Start Month] int,
+	[Project Status] int,
+	[Tentative QNS] int,
+	[Actual QNS Realization] int
+	)
+
+	Declare @GrandQualityTable table
+	(
+	[BU/Vertical] varchar(100),
+	[Sub Category-productivity Theme] int,
+	[WNS QNS Type] int,
+	[QNS Realization Start Month] int,
+	[Project Status] int,
+	[Tentative QNS] int,
+	[Actual QNS Realization] int
+	)
+
+	Declare @FinanceTable table
+	(
+	[BU/Vertical] varchar(100),
+	[Benefit Type Category] int,
+	[Sub Category-productivity Theme] int,
+	[WNS QNS Type] int,
+	[QNS Calculation Methodology] int,
+	[QNS Start Month] int,
+	[Actual QNS Realization] int
+	)
+
+	Declare @GrandFinanceTable table
+	(
+	[BU/Vertical] varchar(100),
+	[Benefit Type Category] int,
+	[Sub Category-productivity Theme] int,
+	[WNS QNS Type] int,
+	[QNS Calculation Methodology] int,
+	[QNS Start Month] int,
+	[Actual QNS Realization] int
+	)
+
+
+
+
+
+
+
+
+
+	IF(@RoleFlag = 'Quality Spoc')
+		BEGIN
+		IF(@Flag = 'Vertical Wise')
+				BEGIN
+					/*  */
+					/*  */
+
+					insert into @QualityTable
+					select PDAT.VerticalName as [BU/Vertical],
+					(Select Count(TPA.AppSubCategoryID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Sub Category-productivity Theme],
+
+					(Select Count(TAT.QNSTypeID)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [WNS QNS Type],
+
+					(
+					Select Count(TAT.StartMonth)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)		as [QNS Realization Start Month],
+
+					(
+					Select Count(TPA.ProjStatusID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.ProjStatusID!=PD.ProjStatusID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and  TPA.IsBuQualityId = 1 and 
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)
+					as [Project Status],
+					(
+					Select Count(TAT.TentativeQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.TentativeQNS!=TAT.TentativeQNS and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+					PD.Verticalname=PDAT.VerticalName 
+					)
+					as [Tentative QNS],
+
+
+					(Select Count(TAT.ActualQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [Actual QNS Realization]
+
+					from ProjectDetails PD
+					left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					where cast(cast(PDAT.DateCreated as date) as date) between @FromDate and @ToDate --and PDAT.IsBuQualityId = 1 and TAT.isBUQualityId = 1
+					and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					--and PDAT.RecCreatedBy = @EmployeeID
+					--and PD.Verticalname=PDAT.VerticalName
+					group by PDAT.VerticalName
+
+					
+					insert into @GrandQualityTable
+					select 'Grand Total' as [BU/Vertical],sum(t1.[Sub Category-productivity Theme]) ,
+					sum([WNS QNS Type]),sum([QNS Realization Start Month]),
+					sum([Project Status]),
+					sum([Tentative QNS]),
+					sum([Actual QNS Realization])
+					from
+					(
+						--select PDAT.VerticalName as [BU/Vertical],count(PDAT.AppSubCategoryID)  as [Sub Category-productivity Theme],
+						--count(TAT.QNSTypeID) as [WNS QNS Type],count(TAT.StartMonth) as [QNS Realization Start Month],
+						----count(QPA.Month) as [QNS Realization Start Month],
+						--count(PDAT.ProjStatusID) as [Project Status],
+						--count(PDAT.TentetiveQNS) as [Tentative QNS]
+						--from ProjectDetails PD
+						--left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+						--inner join TX_QNS TQNS on TQNS.ProjectID =  PD.ProjectID
+						--left join TX_QNS_AuditTrail TAT on TAT.QNSID = TQNS.QNSID
+						--where cast(PDAT.DateCreated as date) between @FromDate and @ToDate
+						--and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						-- --PDAT.RecCreatedBy = @EmployeeID
+						--group by PDAT.VerticalName
+
+						select PDAT.VerticalName as [BU/Vertical],
+						(Select Count(TPA.AppSubCategoryID)
+						From TX_ProjectDetailsAuditTrail TPA 
+						Join ProjectDetails PD with (nolock)on PD.ProjectID=TPA.ProjectID
+						Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						) as [Sub Category-productivity Theme],
+
+						(Select Count(TAT.QNSTypeID)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						) as [WNS QNS Type],
+
+						(
+						Select Count(TAT.StartMonth)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)		as [QNS Realization Start Month],
+
+						(
+						Select Count(TPA.ProjStatusID)
+						From TX_ProjectDetailsAuditTrail TPA 
+						Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+						Where  TPA.ProjStatusID!=PD.ProjStatusID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)
+						as [Project Status],
+						(
+						Select Count(TAT.TentativeQNS)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.TentativeQNS!=TAT.TentativeQNS and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)
+						as [Tentative QNS],
+
+						(Select Count(TAT.ActualQNS)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)as [Actual QNS Realization]
+
+
+
+						from ProjectDetails PD
+						left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						where cast(cast(PDAT.DateCreated as date) as date) between @FromDate and @ToDate --and PDAT.IsBuQualityId = 1 and TAT.isBUQualityId = 1
+						and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						--and PDAT.RecCreatedBy = @EmployeeID
+						--and PD.Verticalname=PDAT.VerticalName
+						group by PDAT.VerticalName
+
+					)t1
+
+					select [BU/Vertical] ,[Sub Category-productivity Theme] ,[WNS QNS Type] ,[QNS Realization Start Month] ,[Project Status],[Tentative QNS] ,[Actual QNS Realization] from @QualityTable
+					union all
+					select 'Grand Total' as [BU/Vertical] ,sum([Sub Category-productivity Theme]) as [Sub Category-productivity Theme] ,sum([WNS QNS Type]) as [WNS QNS Type] ,sum([QNS Realization Start Month]) as [QNS Realization Start Month] ,sum([Project Status]) as [Project Status],sum([Tentative QNS]) as [Tentative QNS] ,sum([Actual QNS Realization]) as [Actual QNS Realization] from @GrandQualityTable
+				END
+		ELSE
+				BEGIN
+					
+					insert into @GrandQualityTable
+					select 'Grand Total' as [BU/Vertical],sum(t1.[Sub Category-productivity Theme]) ,
+					sum([WNS QNS Type]),sum([QNS Realization Start Month]),
+					sum([Project Status]),
+					sum([Tentative QNS]),
+					sum([Actual QNS Realization])
+					from
+					(
+						--select PDAT.VerticalName as [BU/Vertical],count(PDAT.AppSubCategoryID)  as [Sub Category-productivity Theme],
+						--count(TAT.QNSTypeID) as [WNS QNS Type],count(TAT.StartMonth) as [QNS Realization Start Month],
+						----count(QPA.Month) as [QNS Realization Start Month],
+						--count(PDAT.ProjStatusID) as [Project Status],
+						--count(PDAT.TentetiveQNS) as [Tentative QNS]
+						--from ProjectDetails PD
+						--left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+						--inner join TX_QNS TQNS on TQNS.ProjectID =  PD.ProjectID
+						--left join TX_QNS_AuditTrail TAT on TAT.QNSID = TQNS.QNSID
+						--where cast(PDAT.DateCreated as date) between @FromDate and @ToDate
+						--and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						-- --PDAT.RecCreatedBy = @EmployeeID
+						--group by PDAT.VerticalName
+
+						select PDAT.VerticalName as [BU/Vertical],
+						(Select Count(TPA.AppSubCategoryID)
+						From TX_ProjectDetailsAuditTrail TPA 
+						Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+						Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						) as [Sub Category-productivity Theme],
+
+						(Select Count(TAT.QNSTypeID)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						---((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						) as [WNS QNS Type],
+
+						(
+						Select Count(TAT.StartMonth)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)		as [QNS Realization Start Month],
+
+						(
+						Select Count(TPA.ProjStatusID)
+						From TX_ProjectDetailsAuditTrail TPA 
+						Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+						Where  TPA.ProjStatusID!=PD.ProjStatusID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)
+						as [Project Status],
+						(
+						Select Count(TAT.TentativeQNS)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.TentativeQNS!=TAT.TentativeQNS and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)
+						as [Tentative QNS],
+
+						(Select Count(TAT.ActualQNS)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)as [Actual QNS Realization]
+
+
+
+						from ProjectDetails PD
+						left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						where cast(cast(PDAT.DateCreated as date) as date) between @FromDate and @ToDate --and PDAT.IsBuQualityId = 1 and TAT.isBUQualityId = 1
+						and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						--and PDAT.RecCreatedBy = @EmployeeID
+						--and PD.Verticalname=PDAT.VerticalName
+						group by PDAT.VerticalName
+
+					)t1
+					select 'Grand Total' as [BU/Vertical] ,sum([Sub Category-productivity Theme]) as [Sub Category-productivity Theme] ,sum([WNS QNS Type]) as [WNS QNS Type] ,sum([QNS Realization Start Month]) as [QNS Realization Start Month] ,sum([Project Status]) as [Project Status],sum([Tentative QNS]) as [Tentative QNS] ,sum([Actual QNS Realization]) as [Actual QNS Realization] from @GrandQualityTable
+				END
+		END
+	ELSE IF(@RoleFlag = 'Finance Spoc')
+		BEGIN
+		IF(@Flag = 'Vertical Wise')
+			BEGIN
+					insert into @FinanceTable
+					select PDAT.VerticalName as [BU/Vertical],
+					(Select Count(TAT.BenefitTypeId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.BenefitTypeId!=TAT.BenefitTypeId and cast(cast(TAT.Reccreatedon as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Benefit Type Category],
+
+
+					(Select Count(TPA.AppSubCategoryID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and TPA.IsBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Sub Category-productivity Theme],
+
+
+					(Select Count(TAT.QNSTypeID)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and  TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [WNS QNS Type],
+
+
+					(Select Count(TAT.QNSMethodologyId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSMethodologyId!=TAT.QNSMethodologyId and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and  TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [QNS Calculation Methodology],
+
+					(Select Count(TAT.StartMonth)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and 
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [QNS Start Month],
+
+					(Select Count(TAT.ActualQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and 
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [Actual QNS Realization]
+
+
+
+
+					from ProjectDetails PD
+					left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					where cast(cast(PDAT.DateCreated as date) as date) between @FromDate and @ToDate --and PDAT.IsBUFinId = 1 and TAT.isBUFinId = 1
+					and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+					--and PD.Verticalname=PDAT.VerticalName
+					--and PDAT.RecCreatedBy = @EmployeeID
+					group by PDAT.VerticalName
+
+					insert into @GrandFinanceTable
+					select 'Grand Total' as [BU/Vertical], sum([Benefit Type Category]),
+					sum(t2.[Sub Category-productivity Theme]),sum([WNS QNS Type]),
+					sum([QNS Calculation methodology]),sum([QNS Start Month]),
+					sum([Actual QNS Realization]) from
+					(select PDAT.VerticalName as [BU/Vertical],
+					(Select Count(TAT.BenefitTypeId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.BenefitTypeId!=TAT.BenefitTypeId and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Benefit Type Category],
+
+
+					(Select Count(TPA.AppSubCategoryID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and TPA.IsBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Sub Category-productivity Theme],
+
+
+					(Select Count(TAT.QNSTypeID)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [WNS QNS Type],
+
+
+					(Select Count(TAT.QNSMethodologyId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSMethodologyId!=TAT.QNSMethodologyId and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [QNS Calculation Methodology],
+
+					(Select Count(TAT.StartMonth)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [QNS Start Month],
+
+					(Select Count(TAT.ActualQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [Actual QNS Realization]
+
+
+
+
+					from ProjectDetails PD
+					left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					where cast(cast(PDAT.DateCreated as date) as date) between @FromDate and @ToDate --and PDAT.IsBUFinId = 1 and TAT.isBUFinId = 1
+					and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					--and PDAT.RecCreatedBy = @EmployeeID
+					--PD.Verticalname=PDAT.VerticalName
+					group by PDAT.VerticalName)t2
+
+					select [BU/Vertical],[Benefit Type Category] ,[Sub Category-productivity Theme] ,[WNS QNS Type] ,[QNS Calculation Methodology] ,[QNS Start Month] ,[Actual QNS Realization]  from @FinanceTable
+					union all
+					select 'Grand Total' as [BU/Vertical] ,sum([Benefit Type Category]) as [Benefit Type Category] ,sum([Sub Category-productivity Theme]) as [Sub Category-productivity Theme] ,sum([WNS QNS Type]) as [WNS QNS Type] ,sum([QNS Calculation Methodology]) as [QNS Calculation Methodology],sum([QNS Start Month]) as [QNS Start Month] ,sum([Actual QNS Realization]) as [Actual QNS Realization] from @GrandFinanceTable
+
+			END
+		ELSE
+			BEGIN
+					insert into @GrandFinanceTable
+					select 'Grand Total' as [BU/Vertical], sum([Benefit Type Category]),
+					sum(t2.[Sub Category-productivity Theme]),sum([WNS QNS Type]),
+					sum([QNS Calculation methodology]),sum([QNS Start Month]),
+					sum([Actual QNS Realization]) from
+					(select PDAT.VerticalName as [BU/Vertical],
+					(Select Count(TAT.BenefitTypeId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.BenefitTypeId!=TAT.BenefitTypeId and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Benefit Type Category],
+
+
+					(Select Count(TPA.AppSubCategoryID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and TPA.IsBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Sub Category-productivity Theme],
+
+
+					(Select Count(TAT.QNSTypeID)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [WNS QNS Type],
+
+
+					(Select Count(TAT.QNSMethodologyId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSMethodologyId!=TAT.QNSMethodologyId and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [QNS Calculation Methodology],
+
+					(Select Count(TAT.StartMonth)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [QNS Start Month],
+
+					(Select Count(TAT.ActualQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [Actual QNS Realization]
+
+
+
+
+					from ProjectDetails PD
+					left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					where cast(cast(PDAT.DateCreated as date) as date) between @FromDate and @ToDate --and PDAT.IsBUFinId = 1 and TAT.isBUFinId = 1
+					and --((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					--and PDAT.RecCreatedBy = @EmployeeID
+					group by PDAT.VerticalName)t2
+					select 'Grand Total' as [BU/Vertical] ,sum([Benefit Type Category]) as [Benefit Type Category] ,sum([Sub Category-productivity Theme]) as [Sub Category-productivity Theme] ,sum([WNS QNS Type]) as [WNS QNS Type] ,sum([QNS Calculation Methodology]) as [QNS Calculation Methodology],sum([QNS Start Month]) as [QNS Start Month] ,sum([Actual QNS Realization]) as [Actual QNS Realization] from @GrandFinanceTable
+					
+			END
+		END
+	ELSE IF(@RoleFlag = 'BPET PMO')
+		BEGIN
+			IF(@Flag = 'Vertical Wise')
+				BEGIN
+					--Quality wise Data
+
+					--IF OBJECT_ID('tempdb..#APPSUBCAT') IS NOT NULL DROP Table #APPSUBCAT
+					--create table #APPSUBCAT
+					--( AppSubCategoryID nvarchar(50),
+					--verticalname nvarchar(50)
+					--)
+					--	if @Vertical is null 
+					--	Begin
+					--		insert  into #APPSUBCAT(verticalname) Select PDAT.VerticalName From TX_ProjectDetailsAuditTrail PDAT
+					--	End
+					--else 
+					--	Begin
+					--		insert  into #APPSUBCAT(verticalname) (select List from [dbo].[fnSplit](@Vertical,','))
+					--	End
+					insert into @QualityTable
+					select PDAT.VerticalName as [BU/Vertical],
+					(Select Count(TPA.AppSubCategoryID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+					PD.Verticalname=PDAT.VerticalName
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					) as [Sub Category-productivity Theme],
+
+					(Select Count(TAT.QNSTypeID)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)
+					PD.Verticalname=PDAT.VerticalName
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					) as [WNS QNS Type],
+
+					(
+					Select Count(TAT.StartMonth)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(cast(TAT.RecCreatedOn as date) as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+					PD.Verticalname=PDAT.VerticalName
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					)		as [QNS Realization Start Month],
+
+					(
+					Select Count(TPA.ProjStatusID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.ProjStatusID!=PD.ProjStatusID and cast(cast(TPA.RecCreatedOn as date) as date) between @FromDate and @ToDate and  TPA.IsBuQualityId = 1 and 
+					PD.Verticalname=PDAT.VerticalName
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					)
+					as [Project Status],
+					(
+					Select Count(TAT.TentativeQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.TentativeQNS!=TAT.TentativeQNS and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)
+					PD.Verticalname=PDAT.VerticalName
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					)
+					as [Tentative QNS],
+
+
+					(Select Count(TAT.ActualQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+					PD.Verticalname=PDAT.VerticalName
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					)as [Actual QNS Realization]
+
+					from ProjectDetails PD
+					left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					where cast(cast(PDAT.DateCreated as date) as date) between @FromDate and @ToDate --and PDAT.IsBuQualityId = 1 and TAT.isBUQualityId = 1
+					and 
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)
+					((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					--PD.Verticalname=PDAT.VerticalName
+					--and PDAT.RecCreatedBy = @EmployeeID
+					group by PDAT.VerticalName
+
+					
+					insert into @GrandQualityTable
+					select 'Grand Total' as [BU/Vertical],sum(t1.[Sub Category-productivity Theme]) ,
+					sum([WNS QNS Type]),sum([QNS Realization Start Month]),
+					sum([Project Status]),
+					sum([Tentative QNS]),
+					sum([Actual QNS Realization])
+					from
+					(
+						--select PDAT.VerticalName as [BU/Vertical],count(PDAT.AppSubCategoryID)  as [Sub Category-productivity Theme],
+						--count(TAT.QNSTypeID) as [WNS QNS Type],count(TAT.StartMonth) as [QNS Realization Start Month],
+						----count(QPA.Month) as [QNS Realization Start Month],
+						--count(PDAT.ProjStatusID) as [Project Status],
+						--count(PDAT.TentetiveQNS) as [Tentative QNS]
+						--from ProjectDetails PD
+						--left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+						--inner join TX_QNS TQNS on TQNS.ProjectID =  PD.ProjectID
+						--left join TX_QNS_AuditTrail TAT on TAT.QNSID = TQNS.QNSID
+						--where cast(PDAT.DateCreated as date) between @FromDate and @ToDate
+						--and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						-- --PDAT.RecCreatedBy = @EmployeeID
+						--group by PDAT.VerticalName
+
+						select PDAT.VerticalName as [BU/Vertical],
+						(Select Count(TPA.AppSubCategoryID)
+						From TX_ProjectDetailsAuditTrail TPA 
+						Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+						Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(TPA.RecCreatedOn as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						) as [Sub Category-productivity Theme],
+
+						(Select Count(TAT.QNSTypeID)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+						PD.Verticalname=PDAT.VerticalName 
+						) as [WNS QNS Type],
+
+						(
+						Select Count(TAT.StartMonth)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)		as [QNS Realization Start Month],
+
+						(
+						Select Count(TPA.ProjStatusID)
+						From TX_ProjectDetailsAuditTrail TPA 
+						Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+						Where  TPA.ProjStatusID!=PD.ProjStatusID and cast(TPA.RecCreatedOn as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)
+						as [Project Status],
+						(
+						Select Count(TAT.TentativeQNS)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.TentativeQNS!=TAT.TentativeQNS and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)
+						as [Tentative QNS],
+
+						(Select Count(TAT.ActualQNS)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)as [Actual QNS Realization]
+
+
+
+						from ProjectDetails PD
+						left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						where cast(cast(PDAT.DateCreated as date) as date) between @FromDate and @ToDate --and PDAT.IsBuQualityId = 1 and TAT.isBUQualityId = 1
+						and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						--PD.Verticalname=PDAT.VerticalName
+						--and PDAT.RecCreatedBy = @EmployeeID
+						group by PDAT.VerticalName
+
+					)t1
+
+					select [BU/Vertical] ,[Sub Category-productivity Theme] ,[WNS QNS Type] ,[QNS Realization Start Month] ,[Project Status],[Tentative QNS] ,[Actual QNS Realization] from @QualityTable
+					union all
+					select 'Grand Total' as [BU/Vertical] ,sum([Sub Category-productivity Theme]) as [Sub Category-productivity Theme] ,sum([WNS QNS Type]) as [WNS QNS Type] ,sum([QNS Realization Start Month]) as [QNS Realization Start Month] ,sum([Project Status]) as [Project Status],sum([Tentative QNS]) as [Tentative QNS] ,sum([Actual QNS Realization]) as [Actual QNS Realization] from @GrandQualityTable
+					--Finance Wise Data
+
+					insert into @FinanceTable
+					select PDAT.VerticalName as [BU/Vertical],
+					(Select Count(TAT.BenefitTypeId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.BenefitTypeId!=TAT.BenefitTypeId and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Benefit Type Category],
+
+
+					(Select Count(TPA.AppSubCategoryID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(TPA.RecCreatedOn as date) between @FromDate and @ToDate and TPA.IsBUFinId = 1 and
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)
+					PD.Verticalname=PDAT.VerticalName
+					--and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					) as [Sub Category-productivity Theme],
+
+
+					(Select Count(TAT.QNSTypeID)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and  TAT.isBUFinId = 1 and
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC) and
+					PD.Verticalname=PDAT.VerticalName-- and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					) as [WNS QNS Type],
+
+
+					(Select Count(TAT.QNSMethodologyId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSMethodologyId!=TAT.QNSMethodologyId and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and  TAT.isBUFinId = 1 and
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC) 
+					PD.Verticalname=PDAT.VerticalName
+					
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					) as [QNS Calculation Methodology],
+
+					(Select Count(TAT.StartMonth)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and 
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC)and
+					PD.Verticalname=PDAT.VerticalName --and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					)as [QNS Start Month],
+
+					(Select Count(TAT.ActualQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and 
+					--PD.Verticalname in (Select AC.verticalname From #APPSUBCAT AC) and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [Actual QNS Realization]
+
+
+
+
+					from ProjectDetails PD
+					left join TX_ProjectDetailsAuditTrail PDAT with (nolock) on PDAT.ProjectID  = PD.ProjectID
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					where cast(PDAT.DateCreated as date) between @FromDate and @ToDate --and PDAT.IsBUFinId = 1 and TAT.isBUFinId = 1
+					and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,','))))
+					--and PDAT.RecCreatedBy = @EmployeeID
+					group by PDAT.VerticalName
+
+					insert into @GrandFinanceTable
+					select 'Grand Total' as [BU/Vertical], sum([Benefit Type Category]),
+					sum(t2.[Sub Category-productivity Theme]),sum([WNS QNS Type]),
+					sum([QNS Calculation methodology]),sum([QNS Start Month]),
+					sum([Actual QNS Realization]) from
+					(select PDAT.VerticalName as [BU/Vertical],
+					(Select Count(TAT.BenefitTypeId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.BenefitTypeId!=TAT.BenefitTypeId and cast(PD.DateCreated as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Benefit Type Category],
+
+
+					(Select Count(TPA.AppSubCategoryID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(TPA.RecCreatedOn as date) between @FromDate and @ToDate and TPA.IsBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Sub Category-productivity Theme],
+
+
+					(Select Count(TAT.QNSTypeID)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [WNS QNS Type],
+
+
+					(Select Count(TAT.QNSMethodologyId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSMethodologyId!=TAT.QNSMethodologyId and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [QNS Calculation Methodology],
+
+					(Select Count(TAT.StartMonth)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [QNS Start Month],
+
+					(Select Count(TAT.ActualQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [Actual QNS Realization]
+
+
+
+
+					from ProjectDetails PD
+					left join TX_ProjectDetailsAuditTrail PDAT with (nolock) on PDAT.ProjectID  = PD.ProjectID
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					where cast(PDAT.DateCreated as date) between @FromDate and @ToDate --and PDAT.IsBUFinId = 1 and TAT.isBUFinId = 1
+					and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					--and PDAT.RecCreatedBy = @EmployeeID
+					group by PDAT.VerticalName)t2
+
+					select [BU/Vertical],[Benefit Type Category] ,[Sub Category-productivity Theme] ,[WNS QNS Type] ,[QNS Calculation Methodology] ,[QNS Start Month] ,[Actual QNS Realization]  from @FinanceTable
+					union all
+					select 'Grand Total' as [BU/Vertical] ,sum([Benefit Type Category]) as [Benefit Type Category] ,sum([Sub Category-productivity Theme]) as [Sub Category-productivity Theme] ,sum([WNS QNS Type]) as [WNS QNS Type] ,sum([QNS Calculation Methodology]) as [QNS Calculation Methodology],sum([QNS Start Month]) as [QNS Start Month] ,sum([Actual QNS Realization]) as [Actual QNS Realization] from @GrandFinanceTable
+
+				END
+				ELSE
+				BEGIN
+					insert into @GrandQualityTable
+					select 'Grand Total' as [BU/Vertical],sum(t1.[Sub Category-productivity Theme]) ,
+					sum([WNS QNS Type]),sum([QNS Realization Start Month]),
+					sum([Project Status]),
+					sum([Tentative QNS]),
+					sum([Actual QNS Realization])
+					from
+					(
+						--select PDAT.VerticalName as [BU/Vertical],count(PDAT.AppSubCategoryID)  as [Sub Category-productivity Theme],
+						--count(TAT.QNSTypeID) as [WNS QNS Type],count(TAT.StartMonth) as [QNS Realization Start Month],
+						----count(QPA.Month) as [QNS Realization Start Month],
+						--count(PDAT.ProjStatusID) as [Project Status],
+						--count(PDAT.TentetiveQNS) as [Tentative QNS]
+						--from ProjectDetails PD
+						--left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+						--inner join TX_QNS TQNS on TQNS.ProjectID =  PD.ProjectID
+						--left join TX_QNS_AuditTrail TAT on TAT.QNSID = TQNS.QNSID
+						--where cast(PDAT.DateCreated as date) between @FromDate and @ToDate
+						--and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						-- --PDAT.RecCreatedBy = @EmployeeID
+						--group by PDAT.VerticalName
+
+						select PDAT.VerticalName as [BU/Vertical],
+						(Select Count(TPA.AppSubCategoryID)
+						From TX_ProjectDetailsAuditTrail TPA 
+						Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+						Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(TPA.RecCreatedOn as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						) as [Sub Category-productivity Theme],
+
+						(Select Count(TAT.QNSTypeID)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						) as [WNS QNS Type],
+
+						(
+						Select Count(TAT.StartMonth)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)		as [QNS Realization Start Month],
+
+						(
+						Select Count(TPA.ProjStatusID)
+						From TX_ProjectDetailsAuditTrail TPA 
+						Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+						Where  TPA.ProjStatusID!=PD.ProjStatusID and cast(TPA.RecCreatedOn as date) between @FromDate and @ToDate and TPA.IsBuQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)
+						as [Project Status],
+						(
+						Select Count(TAT.TentativeQNS)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.TentativeQNS!=TAT.TentativeQNS and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)
+						as [Tentative QNS],
+
+						(Select Count(TAT.ActualQNS)
+						from ProjectDetails PD
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUQualityId = 1 and
+						--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						PD.Verticalname=PDAT.VerticalName
+						)as [Actual QNS Realization]
+
+
+
+						from ProjectDetails PD
+						left join TX_ProjectDetailsAuditTrail PDAT with (nolock) on PDAT.ProjectID  = PD.ProjectID
+						inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+						left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+						where cast(PDAT.DateCreated as date) between @FromDate and @ToDate --and PDAT.IsBuQualityId = 1 and TAT.isBUQualityId = 1
+						and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+						--and PDAT.RecCreatedBy = @EmployeeID
+						group by PDAT.VerticalName
+
+					)t1
+					select 'Grand Total' as [BU/Vertical] ,sum([Sub Category-productivity Theme]) as [Sub Category-productivity Theme] ,sum([WNS QNS Type]) as [WNS QNS Type] ,sum([QNS Realization Start Month]) as [QNS Realization Start Month] ,sum([Project Status]) as [Project Status],sum([Tentative QNS]) as [Tentative QNS] ,sum([Actual QNS Realization]) as [Actual QNS Realization] from @GrandQualityTable
+
+
+					insert into @GrandFinanceTable
+					select 'Grand Total' as [BU/Vertical], sum([Benefit Type Category]),
+					sum(t2.[Sub Category-productivity Theme]),sum([WNS QNS Type]),
+					sum([QNS Calculation methodology]),sum([QNS Start Month]),
+					sum([Actual QNS Realization]) from
+					(select PDAT.VerticalName as [BU/Vertical],
+					(Select Count(TAT.BenefitTypeId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.BenefitTypeId!=TAT.BenefitTypeId and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Benefit Type Category],
+
+
+					(Select Count(TPA.AppSubCategoryID)
+					From TX_ProjectDetailsAuditTrail TPA 
+					Join ProjectDetails PD with (nolock) on PD.ProjectID=TPA.ProjectID
+					Where  TPA.AppSubCategoryID!=PD.AppSubCategoryID and cast(TPA.RecCreatedOn as date) between @FromDate and @ToDate and TPA.IsBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [Sub Category-productivity Theme],
+
+
+					(Select Count(TAT.QNSTypeID)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSTypeID!=TAT.QNSTypeID and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [WNS QNS Type],
+
+
+					(Select Count(TAT.QNSMethodologyId)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.QNSMethodologyId!=TAT.QNSMethodologyId and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					) as [QNS Calculation Methodology],
+
+					(Select Count(TAT.StartMonth)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ProjectedStartMonth!=TAT.StartMonth and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [QNS Start Month],
+
+					(Select Count(TAT.ActualQNS)
+					from ProjectDetails PD
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					Where  TQNS.ActualQNS!=TAT.ActualQNS and cast(TAT.RecCreatedOn as date) between @FromDate and @ToDate and TAT.isBUFinId = 1 and
+					--((@Vertical IS NULL ) OR (PD.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					PD.Verticalname=PDAT.VerticalName
+					)as [Actual QNS Realization]
+
+
+
+
+					from ProjectDetails PD
+					left join TX_ProjectDetailsAuditTrail PDAT on PDAT.ProjectID  = PD.ProjectID
+					inner join TX_QNS TQNS with (nolock) on TQNS.ProjectID =  PD.ProjectID
+					left join TX_QNS_AuditTrail TAT with (nolock) on TAT.QNSID = TQNS.QNSID
+					where cast(PDAT.DateCreated as date) between @FromDate and @ToDate --and PDAT.IsBUFinId = 1 and TAT.isBUFinId = 1
+					and ((@Vertical IS NULL ) OR (PDAT.Verticalname in (select List from [dbo].[fnSplit](@Vertical,',')))) 
+					--and PDAT.RecCreatedBy = @EmployeeID
+					group by PDAT.VerticalName)t2
+					select 'Grand Total' as [BU/Vertical] ,sum([Benefit Type Category]) as [Benefit Type Category] ,sum([Sub Category-productivity Theme]) as [Sub Category-productivity Theme] ,sum([WNS QNS Type]) as [WNS QNS Type] ,sum([QNS Calculation Methodology]) as [QNS Calculation Methodology],sum([QNS Start Month]) as [QNS Start Month] ,sum([Actual QNS Realization]) as [Actual QNS Realization] from @GrandFinanceTable
+					
+				END
+		END
+END
+
