@@ -1,0 +1,3106 @@
+bind drop down 
+  protected void BindReportType()
+    {
+
+        DataSet dsReporttype = new DataSet();
+        string Flag = "GetReportType";
+        dsReporttype = Reporting.GetDetails(Flag, SessionData.CurrentUser.EmployeeId);
+        DataTable dt = dsReporttype.Tables[0].Copy();
+        //   int AppRole = SessionData.CurrentUser.AppRoleID;
+
+        reportselect.DataSource = dt;
+        reportselect.DataValueField = "ReportID";
+        reportselect.DataTextField = "ReportName";
+        reportselect.DataBind();
+        reportselect.Items.Insert(0, new ListItem("--Select--", "-1"));
+
+        #region Commented scrapped code 
+        //if (!(AppRole == (int)Role.BPETPMO || AppRole == (int)Role.BPETProductivityPMO))
+        //{
+        //    foreach (DataRow dr in dt.Rows)
+        //    {
+        //        if (dr["ReportID"].ToString() == "4") //Project status report id removed
+        //        {
+        //            dr.Delete();
+        //        }
+        //    }
+        //}
+        //if (!(AppRole == (int)Role.BPETProductivityPMO || AppRole == (int)Role.COOPMO))
+        //{
+        //    foreach (DataRow dr in dt.Rows)
+        //    {
+        //        //if (dr["ReportID"].ToString() == "1") //Project status report id removed
+        //        //{
+        //        //    dr.Delete();
+        //        //}
+        //        if (dr["ReportID"].ToString() == "16") //Project status report id removed
+        //        {
+        //            dr.Delete();
+        //        }
+        //    }
+        //}
+
+
+        //if (AppRole != (int)Role.BPETPMO || AppRole != (int)Role.BUFinanceSPOC)
+        //{
+        //    foreach (DataRow dr in dt.Rows)
+        //    {
+        //        if (dr["ReportID"].ToString() == "12") //Project status report id removed
+        //        {
+        //            dr.Delete();
+        //        }
+        //    }
+        //}
+
+
+
+        //if (!(AppRole == 90 || AppRole == 100))
+        //{
+        //    reportselect.Items.RemoveAt(9);
+        //    reportselect.Items.RemoveAt(5);
+        //    reportselect.Items.RemoveAt(15);
+        //}
+        //if (!(AppRole == 50 || AppRole == 80))
+        //{
+        //    reportselect.Items.RemoveAt(7);
+        //}
+        //if (!(AppRole == 50 || AppRole == 70 || AppRole == 80))//7080
+        //{
+        //    reportselect.Items.RemoveAt(6);
+        //}
+        //if (!(AppRole == 50 || AppRole == 90))
+        //{
+        //    reportselect.Items.RemoveAt(4);
+        //}
+        //if (!(AppRole == 90 || AppRole == 100 || AppRole == 50 || AppRole == 70 || AppRole == 80))
+        //{
+        //    reportselect.Items.RemoveAt(1);
+        //}
+
+        //if(AppRole == 90 || AppRole == 100)
+        //{
+        //    reportselect.Items.Remove("Summary of Productivity Themes and Productivity QNS distribution");
+
+        //}
+        #endregion
+
+
+    }
+    
+    
+    
+    3.using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using BPETTracker.Business;
+using System.Data.SqlClient;
+using System.Collections.Generic;
+using System.Configuration;
+using System.Web.UI.HtmlControls;
+using System.Drawing;
+using System.IO;
+
+
+public partial class UI_Reporting : System.Web.UI.Page
+{
+    DataSet ds = new DataSet();
+    Employee emp = new Employee();
+
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        //BindCOOSummaryReport();
+        //MonthlyBUwiseworkflowreport();
+        if (!IsPostBack)
+        {
+            //selected_tab.Value = Request.Form[selected_tab.UniqueID];
+            BindReportType();
+            // int AppRole = SessionData.CurrentUser.AppRoleID;
+            int AppRole = 0;
+            int AppRoleId = 0;
+            string[] Roles = SessionData.CurrentUser.AppRoleID.Split(',');
+            foreach (string RoleId in Roles)
+            {
+                AppRole = Convert.ToInt32(RoleId);
+                if (AppRole == (int)Role.BUQualitySPOC)
+                    AppRoleId = 70;
+                else if (AppRole == (int)Role.BUFinanceSPOC)
+                    AppRoleId = 80;
+                else if (AppRole == (int)Role.BPETProductivityPMO)
+                    AppRoleId = 90;
+                else if (AppRole == (int)Role.COOPMO)
+                    AppRoleId = 100;
+                else if (AppRole == (int)Role.VQL)
+                    AppRoleId = 110;
+                else
+                    AppRoleId = AppRole;
+
+            }
+
+            //BindProductivityConsolidatedReport(Employee.GetProductivityConsolidatedReport("", "", SessionData.CurrentUser.EmployeeId, Convert.ToString(AppRoleId)).Tables[0].DefaultView);
+           // BindProductivityConsolidatedReportQuarter(MonthlyTracker.GetProductivityConsolidatedReportQuarter("", "", SessionData.CurrentUser.EmployeeId, Convert.ToString(AppRoleId)).Tables[0].DefaultView);
+
+
+            //BindCOOSummaryReport();
+            //BindProjectStatusReport();
+            //  rptProjectStatusView.DataSource = null;
+            //  rptProjectStatusView.DataBind();
+            //BindProductivityTheme(Employee.GetProductivityTheme().Tables[0].DefaultView);
+            //BindProductivityPivot(Employee.GetProductivityTheme2().Tables[0].DefaultView);
+            //BindBPETProdPMO(Employee.GetBpetProdPMO().Tables[0].DefaultView);
+            //DataTable dt = new DataTable();
+            //dt.Columns.AddRange(new DataColumn[3] { new DataColumn("Id", typeof(int)),
+            //            new DataColumn("Name", typeof(string)),
+            //            new DataColumn("Description",typeof(string)) });
+            //dt.Rows.Add(1, "John Hammond", "Works as a scientist in USA.");
+            //dt.Rows.Add(2, "Mudassar Khan", "ASP.Net programmer and consultant in India.");
+            //dt.Rows.Add(3, "Suzanne Mathews", "Content Writer in France.");
+            //dt.Rows.Add(4, "Robert Schidner", "Wild life photographer in Russia.");
+            //GridView1.DataSource = dt;
+            //GridView1.DataBind();
+
+            // int AppRole = SessionData.CurrentUser.AppRoleID;
+            //if (AppRole != 90)
+            //{
+            //    trViewBy.Visible = false;
+            //    //  trVerticalBU.Visible = false;
+            //    DivlstBU.Visible = false;
+            //    DivlstBU.Visible = false;
+            //    trPeriod.Visible = false;
+            //}
+            trPipelineReports.Style.Add("display", "none");
+            if (AppRole == 100|| AppRole == 70|| AppRole == 80|| AppRole == 90 || AppRole == 110|| Convert.ToString(Session["RoleName"])== "Vertical Finance")
+            {
+                BindCOOSummaryReport();
+                //reportselect.SelectedValue = "15";
+                //ScriptManager.RegisterStartupScript(this.Page, Page.GetType(), "text", "Func()", true);
+            }
+           
+            SetCurrentTabFirstReport();
+
+        }
+    }
+
+    protected void grdProdTheme_RowDataBound(object sender, GridViewRowEventArgs e)
+
+    {
+
+        //float GTotal = 0;
+        //for (int i = 0; i < grdProdTheme.Rows.Count; i++)
+        //{
+        //    string str = Convert.ToString(DataBinder.Eval(e.Row.DataItem, "Grand Total"));
+        //    str += str.ToString();
+        //}
+        //txtTotal.text = GTotal.toString();
+
+    }
+    protected void OnPageIndexChanging(object sender, GridViewPageEventArgs e)
+    {
+        DateTime? FromMonth = null;
+        DateTime? ToMonth = null;
+        if (!string.IsNullOrEmpty(datefromtxt.Text) && !string.IsNullOrEmpty(datetotxt.Text))
+        {
+            FromMonth = DateTime.Parse(datefromtxt.Text);
+            ToMonth = DateTime.Parse(datetotxt.Text);
+        }
+
+        grdBpetProdPMO.PageIndex = e.NewPageIndex;
+        this.BindBPETProdPMO(Employee.GetBpetProdPMO(FromMonth, ToMonth, emp.Vertical = PivotParameter()).Tables[0].DefaultView);
+    }
+    protected void BindReportType()
+    {
+
+        DataSet dsReporttype = new DataSet();
+        string Flag = "GetReportType";
+        dsReporttype = Reporting.GetDetails(Flag, SessionData.CurrentUser.EmployeeId);
+        DataTable dt = dsReporttype.Tables[0].Copy();
+        //   int AppRole = SessionData.CurrentUser.AppRoleID;
+
+        reportselect.DataSource = dt;
+        reportselect.DataValueField = "ReportID";
+        reportselect.DataTextField = "ReportName";
+        reportselect.DataBind();
+        reportselect.Items.Insert(0, new ListItem("--Select--", "-1"));
+
+        #region Commented scrapped code 
+        //if (!(AppRole == (int)Role.BPETPMO || AppRole == (int)Role.BPETProductivityPMO))
+        //{
+        //    foreach (DataRow dr in dt.Rows)
+        //    {
+        //        if (dr["ReportID"].ToString() == "4") //Project status report id removed
+        //        {
+        //            dr.Delete();
+        //        }
+        //    }
+        //}
+        //if (!(AppRole == (int)Role.BPETProductivityPMO || AppRole == (int)Role.COOPMO))
+        //{
+        //    foreach (DataRow dr in dt.Rows)
+        //    {
+        //        //if (dr["ReportID"].ToString() == "1") //Project status report id removed
+        //        //{
+        //        //    dr.Delete();
+        //        //}
+        //        if (dr["ReportID"].ToString() == "16") //Project status report id removed
+        //        {
+        //            dr.Delete();
+        //        }
+        //    }
+        //}
+
+
+        //if (AppRole != (int)Role.BPETPMO || AppRole != (int)Role.BUFinanceSPOC)
+        //{
+        //    foreach (DataRow dr in dt.Rows)
+        //    {
+        //        if (dr["ReportID"].ToString() == "12") //Project status report id removed
+        //        {
+        //            dr.Delete();
+        //        }
+        //    }
+        //}
+
+
+
+        //if (!(AppRole == 90 || AppRole == 100))
+        //{
+        //    reportselect.Items.RemoveAt(9);
+        //    reportselect.Items.RemoveAt(5);
+        //    reportselect.Items.RemoveAt(15);
+        //}
+        //if (!(AppRole == 50 || AppRole == 80))
+        //{
+        //    reportselect.Items.RemoveAt(7);
+        //}
+        //if (!(AppRole == 50 || AppRole == 70 || AppRole == 80))//7080
+        //{
+        //    reportselect.Items.RemoveAt(6);
+        //}
+        //if (!(AppRole == 50 || AppRole == 90))
+        //{
+        //    reportselect.Items.RemoveAt(4);
+        //}
+        //if (!(AppRole == 90 || AppRole == 100 || AppRole == 50 || AppRole == 70 || AppRole == 80))
+        //{
+        //    reportselect.Items.RemoveAt(1);
+        //}
+
+        //if(AppRole == 90 || AppRole == 100)
+        //{
+        //    reportselect.Items.Remove("Summary of Productivity Themes and Productivity QNS distribution");
+
+        //}
+        #endregion
+
+
+    }
+    protected void BindProductivityTheme(DataView dv)
+    {
+        grdProdTheme.DataSource = dv;
+        grdProdTheme.DataBind();
+        if(dv!=null)
+        { 
+        DataTable dt = dv.Table.Copy();
+        //decimal total = dt.AsEnumerable().Sum(row => row.Field<decimal>("Grand Total"));
+        //grdProdTheme.FooterRow.Cells[1].Text = "Total";
+        //grdProdTheme.FooterRow.Cells[1].HorizontalAlign = HorizontalAlign.Right;
+        //grdProdTheme.FooterRow.Cells[2].Text = total.ToString("N2");
+            if (dt.Rows.Count > 0)
+            {
+                double totalCont = 0.00;
+                decimal totalNonCont = 0;
+                decimal Grandtotal = 0;
+                grdProdTheme.FooterRow.Cells[0].Text = "Grand Total";
+                grdProdTheme.FooterRow.Cells[1].Font.Bold = true;
+                grdProdTheme.FooterRow.Cells[1].HorizontalAlign = HorizontalAlign.Left;
+                for (int k = 0; k < dt.Rows.Count; k++)
+                {
+                    if (Convert.ToString(dt.Rows[k]["Contractual"]) != "")
+                    {
+                        totalCont = totalCont + Convert.ToDouble(dt.Rows[k]["Contractual"].ToString());
+                    }
+                    if (Convert.ToString(dt.Rows[k]["Non Contractual"]) != "")
+                    {
+                        totalNonCont = totalNonCont + Convert.ToDecimal(dt.Rows[k]["Non Contractual"].ToString());
+                    }
+                    if (Convert.ToString(dt.Rows[k]["Grand Total"]) != "")
+                    {
+                        Grandtotal = Grandtotal + Convert.ToDecimal(dt.Rows[k]["Grand Total"].ToString());
+                    }
+                }
+                grdProdTheme.FooterRow.Cells[1].Text = totalCont.ToString();
+                grdProdTheme.FooterRow.Cells[1].Font.Bold = true;
+                grdProdTheme.FooterRow.BackColor = System.Drawing.Color.Beige;
+                grdProdTheme.FooterRow.Cells[2].Text = totalNonCont.ToString();
+                grdProdTheme.FooterRow.Cells[2].Font.Bold = true;
+                grdProdTheme.FooterRow.BackColor = System.Drawing.Color.Beige;
+                grdProdTheme.FooterRow.Cells[3].Text = Grandtotal.ToString();
+                grdProdTheme.FooterRow.Cells[3].Font.Bold = true;
+                grdProdTheme.FooterRow.BackColor = System.Drawing.Color.Beige;
+
+            }
+        }
+
+    }
+    protected void BindProductivityPivot(DataView dv1)
+    {
+        grdProdPivot.DataSource = dv1;
+        grdProdPivot.DataBind();
+        temp3.Style.Add("display", "block");
+        trLocationWiseReport.Style.Add("display", "none");
+        SetCurrentTabOtherReport();
+        BpetProdPMOreport.Style.Add("display", "none");
+        trSummaryCOOReport.Style.Add("display", "none");
+        trPipelineReports.Style.Add("display", "none");
+        trProjectReport.Style.Add("display", "none");
+        trAmendmenDetailedReport.Style.Add("display", "none");
+        trAmendmentreport.Style.Add("display", "none");
+        trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+        //DivlstBU.Style.Add("display", "block");
+        //trPeriod.Style.Add("display", "block");
+        //btnSearch.Style.Add("display", "block");
+    }
+    protected void BindProductivityConsolidatedReport(DataView dv1)
+    {
+        if (dv1.Table.Rows.Count != 0)
+        {
+            rptrProductivityConsolidatedReport.DataSource = dv1;
+            rptrProductivityConsolidatedReport.DataBind();
+        }
+        else
+        {
+            rptrProductivityConsolidatedReport.Visible = false;
+        }
+
+    }
+
+    protected void BindPipelineProVsActReport(DataView dv1)
+    {
+        if (dv1.Table.Rows.Count != 0)
+        {
+            trPipelineReports.Style.Add("display", "block");
+            //rptrPipelineReport.DataSource = dv1;
+            //rptrPipelineReport.DataBind();
+            Repeater1.DataSource = dv1;
+            Repeater1.DataBind();
+        }
+        else
+        {
+            // rptrPipelineReport.Visible = false;
+        }
+
+
+    }
+    protected void BindPipelineProVsActReportQuarter(DataView dv2)
+    {
+        if (dv2.Table.Rows.Count != 0)
+        {
+            rptrPipelineReportQuarter.DataSource = dv2;
+            rptrPipelineReportQuarter.DataBind();
+            trPipelineReports.Style.Add("display", "block");
+            trLocationWiseReport.Style.Add("display", "none");
+            SetCurrentTabOtherReport();
+            BpetProdPMOreport.Style.Add("display", "none");
+            temp3.Style.Add("display", "none");
+
+
+            trProjectReport.Style.Add("display", "none");
+            trLocationWiseReport.Style.Add("display", "none");
+            trMonthlyBuWiseReport.Style.Add("display", "none");
+            trAmendmentreport.Style.Add("display", "none");
+            trAmendmenDetailedReport.Style.Add("display", "none");
+
+
+            trSummaryCOOReport.Style.Add("display", "none");
+
+            trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+
+            //DivlstBU.Style.Add("display", "block");
+            //trPeriod.Style.Add("display", "block");
+            //btnSearch.Style.Add("display", "block");
+            // trPipelineQuarter.Style.Add("display","block");
+        }
+        else
+        {
+            trPipelineReports.Style.Add("display", "none");
+            trLocationWiseReport.Style.Add("display", "none");
+            SetCurrentTabOtherReport();
+            BpetProdPMOreport.Style.Add("display", "none");
+            temp3.Style.Add("display", "none");
+            trMonthlyBuWiseReport.Style.Add("display", "none");
+            trAmendmentreport.Style.Add("display", "none");
+            trAmendmenDetailedReport.Style.Add("display", "none");
+        }
+
+    }
+
+    protected void BindProductivityConsolidatedReportQuarter(DataView dv1)
+    {
+        if (dv1.Table.Rows.Count != 0)
+        {
+            rptrProductivityConsolidatedReportQuarter.DataSource = dv1;
+            rptrProductivityConsolidatedReportQuarter.DataBind();
+        }
+        else
+        {
+            rptrProductivityConsolidatedReportQuarter.Visible = false;
+            if (!rptrProductivityConsolidatedReport.Visible)
+            {
+                lblConsolidatedReportQuarter.Text = "No Data Found";
+            }
+        }
+
+
+    }
+    protected void grdEmployeeMapping_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        //float GTotal = 0;
+        //for (int i = 0; i < grdProdTheme.Rows.Count; i++)
+        //{
+        //    string str = Convert.ToString(DataBinder.Eval(e.Row.DataItem, "Grand Total"));
+        //    str += str.ToString();
+        //}
+    }
+
+    //public void BindProjectStatusReport()
+    //{
+    //    try
+    //    {
+    //        DataSet ds = new DataSet();
+    //        ds = Reporting.GetprojectStatusReport();
+    //        if (ds.Tables[0] != null && ds.Tables[0].Rows.Count > 0)
+    //        {
+    //            rptProjectStatusView.DataSource = ds;
+    //            rptProjectStatusView.DataBind();
+    //        }
+    //    }
+    //    catch (Exception)
+    //    {
+
+    //        throw;
+    //    }
+    //}
+
+
+
+    protected void datefromtxt_TextChanged(object sender, EventArgs e)
+    {
+
+    }
+
+    protected void datetotxt_TextChanged(object sender, EventArgs e)
+    {
+
+    }
+
+    protected void rptProjectStatusView_ItemDataBound(object sender, RepeaterItemEventArgs e)
+    {
+
+    }
+
+
+    protected void btnSearch_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            if (reportselect.SelectedIndex == 1 || ValidateItemSearch())
+            {
+                BindReport();
+            }
+        }
+        catch (Exception)
+        {
+
+            throw;
+        }
+    }
+
+    protected void btnConsolRpt_Click(object sender, EventArgs e)
+    {
+        //DigvijayCon
+        int AppRole = 0;
+        int AppRoleId = 0;
+        string[] Roles = SessionData.CurrentUser.AppRoleID.Split(',');
+        foreach (string RoleId in Roles)
+        {
+            AppRole = Convert.ToInt32(RoleId);
+            if (AppRole == (int)Role.BUQualitySPOC)
+                AppRoleId = 70;
+            else if (AppRole == (int)Role.BUFinanceSPOC)
+                AppRoleId = 80;
+            else if (AppRole == (int)Role.BPETProductivityPMO)
+                AppRoleId = 90;
+            else if (AppRole == (int)Role.COOPMO)
+                AppRoleId = 100;
+            else if (AppRole == (int)Role.VQL)
+                AppRoleId = 110;
+            else
+                AppRoleId = AppRole;
+
+        }
+        SetCurrentTabFirstReport();
+        lgTitle.Text = "Consolidated Report";
+        divConsolQuarter.Visible = false;
+        divConsol.Visible = true;
+        BindProductivityConsolidatedReport(Employee.GetProductivityConsolidatedReport("", "", SessionData.CurrentUser.EmployeeId, Convert.ToString(AppRoleId)).Tables[0].DefaultView);
+    }
+    protected void btnConsolQtrRpt_Click(object sender, EventArgs e)
+    {
+        int AppRole = 0;
+        int AppRoleId = 0;
+        string[] Roles = SessionData.CurrentUser.AppRoleID.Split(',');
+        foreach (string RoleId in Roles)
+        {
+            AppRole = Convert.ToInt32(RoleId);
+            if (AppRole == (int)Role.BUQualitySPOC)
+                AppRoleId = 70;
+            else if (AppRole == (int)Role.BUFinanceSPOC)
+                AppRoleId = 80;
+            else if (AppRole == (int)Role.BPETProductivityPMO)
+                AppRoleId = 90;
+            else if (AppRole == (int)Role.COOPMO)
+                AppRoleId = 100;
+            else if (AppRole == (int)Role.VQL)
+                AppRoleId = 110;
+            else
+                AppRoleId = AppRole;
+
+        }
+        SetCurrentTabFirstReport();
+        lgTitle.Text = "Consolidated Quarter Report";
+        divConsolQuarter.Visible = true;
+        divConsol.Visible = false;
+        BindProductivityConsolidatedReportQuarter(MonthlyTracker.GetProductivityConsolidatedReportQuarter("", "", SessionData.CurrentUser.EmployeeId, Convert.ToString(AppRoleId)).Tables[0].DefaultView);
+    }
+
+    public void BindReport()
+    {
+        trSummaryCOOReport.Style.Add("display", "none");
+        int reportTypeVal = Convert.ToInt32(reportselect.SelectedValue);
+        //  int AppRole = SessionData.CurrentUser.AppRoleID;
+
+        DateTime? FromMonth = null;
+        DateTime? ToMonth = null;
+        if (!string.IsNullOrEmpty(datefromtxt.Text) && !string.IsNullOrEmpty(datetotxt.Text))
+        {
+            FromMonth = DateTime.Parse(datefromtxt.Text);
+            ToMonth = DateTime.Parse(datetotxt.Text);
+        }
+
+        int AppRole = 0;
+        string[] Roles = SessionData.CurrentUser.AppRoleID.Split(',');
+        foreach (string RoleId in Roles)
+        {
+            AppRole = Convert.ToInt32(RoleId);
+
+        }
+
+        switch (reportTypeVal)
+        {
+            case 1:
+                emp.Vertical = PivotParameter();
+
+                BindProductivityTheme(Employee.GetProductivityTheme(AppRole, SessionData.CurrentUser.EmployeeId, ddlView.SelectedValue, emp.Vertical, FromMonth, ToMonth).Tables[0].DefaultView);
+                //emp.Vertical = PivotParameter();
+                BindProductivityPivot(Employee.GetProductivityTheme2(ddlView.SelectedValue.ToString(), emp.Vertical, SessionData.CurrentUser.EmployeeId, AppRole).Tables[0].DefaultView);
+
+                break;
+            case 2:
+                emp.Vertical = PivotParameter();
+                BindPipelineProVsActReport(Employee.GetPipelineReport(emp.Vertical, ddlView.SelectedValue, SessionData.CurrentUser.EmployeeId, Convert.ToString(AppRole), FromMonth, ToMonth).Tables[0].DefaultView);
+                BindPipelineProVsActReportQuarter(Employee.GetPipelineReportQuarter(emp.Vertical, ddlView.SelectedValue, SessionData.CurrentUser.EmployeeId, Convert.ToString(AppRole), FromMonth, ToMonth).Tables[0].DefaultView);
+                break;
+            case 3:
+                LocationWiseReport();
+                break;
+            case 4:
+                ProjectStatusReport();
+                break;
+            case 5:
+                MonthlyBUwiseworkflowreport();
+                break;
+            case 6:
+                AmendmentReport();
+                break;
+            case 12:
+                AmendmentDetailedReport();
+                break;
+            case 15:
+                BindCOOSummaryReport();
+                break;
+            case 16:
+                emp.Vertical = PivotParameter();
+                BindBPETProdPMO(Employee.GetBpetProdPMO(FromMonth, ToMonth, emp.Vertical).Tables[0].DefaultView); ;
+                break;
+            case 17:
+                emp.Vertical = PivotParameter();
+                BindPendingActionableBUQualitySPOC(FromMonth, ToMonth, emp.Vertical);
+                break;
+            case -1:
+                ClearReports();
+                break;
+            default:
+                break;
+
+
+        }
+
+    }
+
+    private void BindPendingActionableBUQualitySPOC(DateTime? fromMonth, DateTime? toMonth, string vertical)
+    {
+        DataTable DtReport = Reporting.GetPendingActionableBUQualitySPOCReport(fromMonth, toMonth, vertical).Tables[0];
+
+        if (DtReport != null && DtReport.Rows.Count > 0)
+        {
+            tdExport.Style.Add("display", "block");
+            tdExport.Visible = true;
+        }
+        else
+        {
+            tdExport.Style.Add("display", "none");
+            tdExport.Visible = false;
+        }
+
+        grdPendingActionableBUQualitySPOC.DataSource = DtReport;
+        grdPendingActionableBUQualitySPOC.DataBind();
+        SetCurrentTabOtherReport();
+        trPendingActionableBUQualitySPOC.Style.Add("display", "block");
+        temp3.Style.Add("display", "none");
+        trSummaryCOOReport.Style.Add("display", "none");
+        BpetProdPMOreport.Style.Add("display", "none");
+        trPipelineReports.Style.Add("display", "none");
+        trProjectReport.Style.Add("display", "none");
+        trAmendmentreport.Style.Add("display", "none");
+        trAmendmenDetailedReport.Style.Add("display", "none");
+        trLocationWiseReport.Style.Add("display", "none");
+    }
+
+    string BUlstSelected = string.Empty;
+    string BUvertical = string.Empty;
+    string lstSelected = string.Empty;
+    string vertical = string.Empty;
+    public string PivotParameter()
+    {
+
+        string view = ddlView.Text;
+        String FromMonth = "";
+        String ToMonth = "";
+        //if (!String.IsNullOrEmpty(datefromtxt.Text) && !String.IsNullOrEmpty(datetotxt.Text))
+        //{
+        //    FromMonth = datefromtxt.Text;
+        //    ToMonth = datetotxt.Text;
+        //}
+        //if (view == "BU Wise")
+        //{
+
+
+        foreach (ListItem lst in lstBUVerticals.Items)
+            if (lst.Selected)
+            {
+
+                BUlstSelected = BUlstSelected + lst.Value + ",";
+                BUvertical = BUlstSelected.Remove(BUlstSelected.LastIndexOf(','));
+            }
+
+        //}
+        return BUvertical;
+    }
+
+    public void ProjectStatusReport()
+    {
+        string quarterValue = "";
+        ViewState["ProjectstatusReport"] = null;
+        DataTable dt = new DataTable();
+        DataSet ds = new DataSet();
+        string view = ddlView.Text;
+        DateTime? FromMonth = null;
+        DateTime? ToMonth = null;
+        if (!string.IsNullOrEmpty(datefromtxt.Text) && !string.IsNullOrEmpty(datetotxt.Text))
+        {
+            FromMonth = DateTime.Parse(datefromtxt.Text);
+            ToMonth = DateTime.Parse(datetotxt.Text);
+        }
+        if (view == "Vertical Wise")
+        {
+
+            foreach (ListItem lst in lstBUVerticals.Items)
+                if (lst.Selected)
+                {
+                    lstSelected = lstSelected + lst.Value + ",";
+                    vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                }
+            ds = Reporting.GetprojectStatusReport(FromMonth, ToMonth, vertical, view, SessionData.CurrentUser.EmployeeId);
+        }
+        else if (view == "BU Wise")
+        {
+
+            foreach (ListItem lst in lstBUVerticals.Items)
+                if (lst.Selected)
+                {
+                    lstSelected = lstSelected + lst.Value + ",";
+                    vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                }
+            ds = Reporting.GetprojectStatusReport(FromMonth, ToMonth, vertical, view, SessionData.CurrentUser.EmployeeId);
+        }
+        else
+        {
+            ds = Reporting.GetprojectStatusReport(FromMonth, ToMonth, "", "Vertical Wise", SessionData.CurrentUser.EmployeeId);
+        }
+        if (ds.Tables[0] != null)
+        {
+
+            //for (int i = 0; i < ds.Tables[0].Rows.Count; i++) {
+            //    string value = ds.Tables[0].Rows[i][0].ToString();
+            //    if (!string.IsNullOrEmpty(value))
+            //    {
+            //        dt = row;
+            //    }
+
+
+            //}
+            dt = ds.Tables[0].Clone();
+            foreach (DataRow dr in ds.Tables[0].Rows)
+            {
+                object value = dr["vertical"];
+                if (value != DBNull.Value)
+                    dt.Rows.Add(dr.ItemArray);
+            }
+
+            //foreach (DataRow row in ds.Tables[0].Rows)
+            //{
+            //    object value = row["VerticalName"];
+            //    if (value != DBNull.Value).
+            //    {
+            //        dt = row;
+            //    }
+
+            //}
+        }
+        ViewState["ProjectstatusReport"] = dt;
+        ViewState["ProjectQuarter"] = ds.Tables[1];
+        GrdProjectStatusReport.DataSource = dt;
+        GrdProjectStatusReport.DataBind();
+
+
+        SetCurrentTabOtherReport();
+        trProjectReport.Style.Add("display", "block");
+        trLocationWiseReport.Style.Add("display", "none");
+        trMonthlyBuWiseReport.Style.Add("display", "none");
+        trAmendmentreport.Style.Add("display", "none");
+        trAmendmenDetailedReport.Style.Add("display", "none");
+        BpetProdPMOreport.Style.Add("display", "none");
+        trPipelineReports.Style.Add("display", "none");
+        trSummaryCOOReport.Style.Add("display", "none");
+        temp3.Style.Add("display", "none");
+
+        trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+        // ClearFields();
+    }
+
+    public void LocationWiseReport()
+    {
+        List<string> lstBUWise = new List<string>();
+        DataSet ds = new DataSet();
+        string view = ddlView.SelectedItem.Text;
+        DateTime? FromMonth = null;
+        DateTime? ToMonth = null;
+
+        // string month = datefromtxt.Text;
+        //string datefrom = datefromtxt.Text;
+        // string dateto = datetotxt.Text;
+        if (!string.IsNullOrEmpty(datefromtxt.Text) && !string.IsNullOrEmpty(datetotxt.Text))
+        {
+            FromMonth = DateTime.Parse(datefromtxt.Text);
+            ToMonth = DateTime.Parse(datetotxt.Text);
+        }
+
+        if (view == "Vertical Wise")
+        {
+            foreach (ListItem lst in lstBUVerticals.Items)
+                if (lst.Selected)
+                {
+
+                    lstSelected = lstSelected + lst.Value + ",";
+                    vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    //lstBUWise.Add(vertical);
+                }
+            ds = Reporting.GetLocationWiseReport(view, FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+        }
+        else if (view == "BU Wise")
+        {
+            foreach (ListItem lst in lstBUVerticals.Items)
+                if (lst.Selected)
+                {
+                    lstSelected = lstSelected + lst.Value + ",";
+                    vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    //lstBUWise.Add(vertical);
+                }
+            //var BUList = ConvertDatatableToXML(lstBUWise, "Vertical");
+            //string Vertical = BUList;
+            ds = Reporting.GetLocationWiseReport(view, FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+        }
+        else
+        {
+            //ds = Reporting.GetLocationWiseReport("Vertical Wise", FromMonth, ToMonth, "", SessionData.CurrentUser.EmployeeId);
+        }
+        if (ds != null && ds.Tables.Count > 0)
+        {
+            if (ds.Tables[0].Rows.Count > 0 || ds.Tables[0] != null)
+            {
+                ViewState["LocWiseReport"] = ds.Tables[0];
+                GrdLocationreport.DataSource = ds.Tables[0];
+                GrdLocationreport.DataBind();
+            }
+            if (ds.Tables[1].Rows.Count > 0 && ds.Tables[1] != null)
+            {
+                ViewState["LocVerticalWiseReport"] = ds.Tables[1];
+                GrdVerticalreport.DataSource = ds.Tables[1];
+                GrdVerticalreport.DataBind();
+            }
+        }
+        //if (ds.Tables[0] != null && ds.Tables[0].Rows.Count > 0)
+        //{
+
+        //decimal total = 0;
+        //GrdLocationreport.FooterRow.Cells[0].Text = "Grand Total";
+        //GrdLocationreport.FooterRow.Cells[0].Font.Bold = true;
+        //GrdLocationreport.FooterRow.Cells[0].HorizontalAlign = HorizontalAlign.Left;
+        //GrdLocationreport.FooterRow.Cells[0].Style.Add("font-family", "verdana");
+        //GrdLocationreport.FooterRow.Cells[0].Font.Size = 10;
+        //for (int k = 1; k < ds.Tables[0].Columns.Count; k++)
+        //{
+        //    total = ds.Tables[0].AsEnumerable().Sum(row => row.Field<decimal>(ds.Tables[0].Columns[k].ToString()));
+        //    GrdLocationreport.FooterRow.Cells[k].Text = total.ToString();
+        //    GrdLocationreport.FooterRow.Cells[k].Font.Size = 8;
+        //    GrdLocationreport.FooterRow.Cells[k].Style.Add("font-family", "verdana");
+        //}
+        //}
+
+
+        SetCurrentTabOtherReport();
+        trProjectReport.Style.Add("display", "none");
+
+        //Display Grid in case of any records else hide grid.
+        if (ds != null)
+        {
+            trLocationWiseReport.Style.Add("display", "block");
+            lblNoRecords.Visible = false;
+        }
+        else
+        {
+            trLocationWiseReport.Style.Add("display", "none");
+            lblNoRecords.Visible = true;
+        }
+        trMonthlyBuWiseReport.Style.Add("display", "none");
+        trAmendmentreport.Style.Add("display", "none");
+        trAmendmenDetailedReport.Style.Add("display", "none");
+        BpetProdPMOreport.Style.Add("display", "none");
+        trPipelineReports.Style.Add("display", "none");
+        trSummaryCOOReport.Style.Add("display", "none");
+        temp3.Style.Add("display", "none");
+
+        trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+        //ClearFields();
+    }
+
+    public void MonthlyBUwiseworkflowreport()
+    {
+
+        try
+        {
+            DataSet ds = new DataSet();
+            string view = ddlView.Text;
+            String FromMonth = "";
+            String ToMonth = "";
+            //its a business rule by default vertical wise report should be diplayed
+            if (ddlView.SelectedItem.Value == "--Select--")
+            {
+                view = "Vertical Wise";
+            }
+
+            if (!String.IsNullOrEmpty(datefromtxt.Text) && !String.IsNullOrEmpty(datetotxt.Text))
+            {
+                FromMonth = datefromtxt.Text;
+                ToMonth = datetotxt.Text;
+            }
+            else
+            {
+                //its a business rule if date is not selected it should display report for current month
+                DateTime now = DateTime.Now;
+                var currStartDate = new DateTime(now.Year, now.Month, 1);
+                var currEndDate = currStartDate.AddMonths(1).AddDays(-1);
+
+                FromMonth = currStartDate.ToString();
+                ToMonth = currEndDate.ToString();
+            }
+
+
+            if (view == "BU Wise")
+            {
+                string lstSelected = string.Empty;
+                string vertical = string.Empty;
+                foreach (ListItem lst in lstBUVerticals.Items)
+                    if (lst.Selected)
+                    {
+                        lstSelected = lstSelected + lst.Value + ",";
+                        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    }
+                var VerticalList = String.Join(",", lstBUVerticals.Items.Cast<ListItem>().Where(item => item.Selected).Select(item => item.Text));
+                var VerticalListForXML = lstBUVerticals.Items.Cast<ListItem>().Where(item => item.Selected).Select(item => item.Text).ToList();
+                var VerticalListXML = ConvertDatatableToXML(VerticalListForXML, "Vertical");
+
+                ds = Reporting.GetMonthlyBUwiseworkflowreport(VerticalListXML, view, Convert.ToInt32(SessionData.CurrentUser.EmployeeId), Convert.ToDateTime(FromMonth), Convert.ToDateTime(ToMonth));
+            }
+            else
+            {
+                if (lstBUVerticals.SelectedIndex == -1)
+                {
+                    ds = Reporting.GetMonthlyBUwiseworkflowreport(null, view, Convert.ToInt32(SessionData.CurrentUser.EmployeeId), Convert.ToDateTime(FromMonth), Convert.ToDateTime(ToMonth));
+
+                }
+                else
+                {
+                    string lstSelected = string.Empty;
+                    string vertical = string.Empty;
+                    foreach (ListItem lst in lstBUVerticals.Items)
+                        if (lst.Selected)
+                        {
+                            lstSelected = lstSelected + lst.Value + ",";
+                            vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                        }
+                    var VerticalList = String.Join(",", lstBUVerticals.Items.Cast<ListItem>().Where(item => item.Selected).Select(item => item.Text));
+                    var VerticalListForXML = lstBUVerticals.Items.Cast<ListItem>().Where(item => item.Selected).Select(item => item.Text).ToList();
+                    var VerticalListXML = ConvertDatatableToXML(VerticalListForXML, "Vertical");
+
+                    ds = Reporting.GetMonthlyBUwiseworkflowreport(VerticalListXML, view, Convert.ToInt32(SessionData.CurrentUser.EmployeeId), Convert.ToDateTime(FromMonth), Convert.ToDateTime(ToMonth));
+
+                }
+            }
+
+            if (ds.Tables.Count > 0 && ds.Tables[0] != null && ds.Tables[0].Rows.Count > 0)
+            {
+                grdMonthlyBUWiseReport.DataSource = ds.Tables[0];
+                grdMonthlyBUWiseReport.DataBind();
+            }
+            else
+            {
+                grdMonthlyBUWiseReport.DataSource = null;
+                grdMonthlyBUWiseReport.DataBind();
+
+            }
+            SetCurrentTabOtherReport();
+            trMonthlyBuWiseReport.Style.Add("display", "block");
+            trLocationWiseReport.Style.Add("display", "none");
+            trProjectReport.Style.Add("display", "none");
+            trAmendmentreport.Style.Add("display", "none");
+            trAmendmenDetailedReport.Style.Add("display", "none");
+            trSummaryCOOReport.Style.Add("display", "none");
+            BpetProdPMOreport.Style.Add("display", "none");
+            trPipelineReports.Style.Add("display", "none");
+            trSummaryCOOReport.Style.Add("display", "none");
+            temp3.Style.Add("display", "none");
+
+            trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+        }
+        catch (Exception)
+        {
+
+            throw;
+        }
+    }
+
+    //public string ConvertDatatableToXML(List<string> dataList, string columnName)
+    //{
+    //    DataTable table = new DataTable();
+    //    table.Columns.Add(columnName.ToLower());
+    //    foreach (var array in dataList)
+    //    {
+    //        table.Rows.Add(array);
+    //    }
+    //    table.AcceptChanges();
+    //    table.TableName = columnName;
+
+    //    MemoryStream str = new MemoryStream();
+    //    table.WriteXml(str, true);
+    //    str.Seek(0, SeekOrigin.Begin);
+    //    StreamReader sr = new StreamReader(str);
+    //    string xmlstr;
+    //    xmlstr = sr.ReadToEnd();
+    //    return (xmlstr);
+    //}
+
+    public void AmendmentReport()
+    {
+        DataSet ds = new DataSet();
+        String FromMonth = "";
+        String ToMonth = "";
+        if (!String.IsNullOrEmpty(datefromtxt.Text) && !String.IsNullOrEmpty(datetotxt.Text))
+        {
+            FromMonth = datefromtxt.Text;
+            ToMonth = datetotxt.Text;
+        }
+        //int AppRole = SessionData.CurrentUser.AppRoleID;
+
+        int AppRoleId = 0;
+        string[] Roles = SessionData.CurrentUser.AppRoleID.Split(',');
+        bool isBUQualitySPOC = false, isBUFinanceSPOC = false, isBPETProductivityPMO = false, isVQL = false, isCOOPMO = false;
+        foreach (string RoleId in Roles)
+        {
+            AppRoleId = Convert.ToInt32(RoleId);
+            if (AppRoleId == (int)Role.BUQualitySPOC)
+                isBUQualitySPOC = true;
+            if (AppRoleId == (int)Role.BUFinanceSPOC)
+                isBUFinanceSPOC = true;
+            if (AppRoleId == (int)Role.BPETProductivityPMO)
+                isBPETProductivityPMO = true;
+            if (AppRoleId == (int)Role.COOPMO)
+                isCOOPMO = true;
+            if (AppRoleId == (int)Role.VQL)
+                isVQL = true;
+        }
+        // if (AppRole == (int)Role.BUQualitySPOC)
+        if (isBUQualitySPOC)
+        {
+            string view = ddlView.Text;
+            if (view == "Vertical Wise")
+            {
+                foreach (ListItem lst in lstBUVerticals.Items)
+                    if (lst.Selected)
+                    {
+                        lstSelected = lstSelected + lst.Value + ",";
+                        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    }
+                ds = Reporting.GetAmendmentReport(view, "Quality Spoc", FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+            }
+            else if (view == "BU Wise")
+            {
+                foreach (ListItem lst in lstBUVerticals.Items)
+                    if (lst.Selected)
+                    {
+                        lstSelected = lstSelected + lst.Value + ",";
+                        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    }
+                ds = Reporting.GetAmendmentReport(view, "Quality Spoc", FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+            }
+            else
+            {
+                ds = Reporting.GetAmendmentReport("Vertical Wise", "Quality Spoc", "", "", "", SessionData.CurrentUser.EmployeeId);
+            }
+
+            grdAmendmentReportByQuality.DataSource = ds.Tables[0];
+            grdAmendmentReportByQuality.DataBind();
+            grdAmendmentReportBUFinance.Visible = false;
+        }
+        //else if (AppRole == (int)Role.BUFinanceSPOC)
+        else if (isBUFinanceSPOC)
+        {
+            string view = ddlView.Text;
+            if (view == "Vertical Wise")
+            {
+                foreach (ListItem lst in lstBUVerticals.Items)
+                    if (lst.Selected)
+                    {
+                        lstSelected = lstSelected + lst.Value + ",";
+                        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    }
+                ds = Reporting.GetAmendmentReport(view, "Finance Spoc", FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+            }
+            else if (view == "BU Wise")
+            {
+                foreach (ListItem lst in lstBUVerticals.Items)
+                    if (lst.Selected)
+                    {
+                        lstSelected = lstSelected + lst.Value + ",";
+                        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    }
+                ds = Reporting.GetAmendmentReport(view, "Finance Spoc", FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+            }
+            else
+            {
+                ds = Reporting.GetAmendmentReport("Vertical Wise", "Finance Spoc", "", "", "", SessionData.CurrentUser.EmployeeId);
+            }
+            grdAmendmentReportBUFinance.DataSource = ds.Tables[1];
+            grdAmendmentReportBUFinance.DataBind();
+            grdAmendmentReportByQuality.Visible = false;
+        }
+        //else if (AppRole == (int)Role.BPETProductivityPMO || AppRole == (int)Role.COOPMO || AppRole == (int)Role.VQL)
+        else if (isBPETProductivityPMO || isCOOPMO || isVQL)
+        {
+            string view = ddlView.Text;
+            if (view == "Vertical Wise")
+            {
+                foreach (ListItem lst in lstBUVerticals.Items)
+                    if (lst.Selected)
+                    {
+
+                        lstSelected = lstSelected + lst.Value + ",";
+                        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    }
+                ds = Reporting.GetAmendmentReport(view, "BPET PMO", FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+                if (ds.Tables[0].Rows.Count == 1)
+                {
+                    grdAmendmentReportByQuality.DataSource = null;
+                    ScriptManager.RegisterStartupScript(this.Page, this.GetType(), "Alert", "javascript:alert('No Amendment Recorded For the Month');", true);
+
+                }
+                else
+                {
+                    grdAmendmentReportByQuality.DataSource = ds.Tables[0];
+                }
+
+                if (ds.Tables[1].Rows.Count == 1)
+                {
+                    grdAmendmentReportBUFinance.DataSource = null;
+                    ScriptManager.RegisterStartupScript(this.Page, this.GetType(), "Alert", "javascript:alert('No Amendment Recorded For the Month');", true);
+                }
+                else
+                {
+                    grdAmendmentReportBUFinance.DataSource = ds.Tables[1];
+                }
+
+
+            }
+            else if (view == "BU Wise")
+            {
+                foreach (ListItem lst in lstBUVerticals.Items)
+                    if (lst.Selected)
+                    {
+
+                        lstSelected = lstSelected + lst.Value + ",";
+                        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    }
+                ds = Reporting.GetAmendmentReport(view, "BPET PMO", FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+                grdAmendmentReportByQuality.DataSource = ds.Tables[0];
+                grdAmendmentReportBUFinance.DataSource = ds.Tables[1];
+            }
+            else
+            {
+                ds = Reporting.GetAmendmentReport("Vertical Wise", "BPET PMO", "", "", "", SessionData.CurrentUser.EmployeeId);
+                if (ds.Tables[0].Rows.Count == 1)
+                {
+                    grdAmendmentReportByQuality.DataSource = null;
+                }
+
+                if (ds.Tables[1].Rows.Count == 1)
+                {
+                    grdAmendmentReportBUFinance.DataSource = null;
+                }
+
+            }
+            lblqualityview.Text = "Quality View:";
+            grdAmendmentReportByQuality.DataSource = ds.Tables[0];
+            grdAmendmentReportByQuality.DataBind();
+            grdAmendmentReportByQuality.Visible = true;
+
+            lblFinanceview.Text = "Finance View:";
+            grdAmendmentReportBUFinance.DataSource = ds.Tables[1];
+            grdAmendmentReportBUFinance.DataBind();
+            grdAmendmentReportBUFinance.Visible = true;
+        }
+
+
+
+        SetCurrentTabOtherReport();
+        trProjectReport.Style.Add("display", "none");
+        trLocationWiseReport.Style.Add("display", "none");
+        trMonthlyBuWiseReport.Style.Add("display", "none");
+        trAmendmentreport.Style.Add("display", "block");
+        trAmendmenDetailedReport.Style.Add("display", "none");
+        BpetProdPMOreport.Style.Add("display", "none");
+        trPipelineReports.Style.Add("display", "none");
+        trSummaryCOOReport.Style.Add("display", "none");
+        temp3.Style.Add("display", "none");
+        trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+        //ClearFields();
+    }
+
+    public void AmendmentDetailedReport()
+    {
+        DataSet ds = new DataSet();
+        String FromMonth = "";
+        String ToMonth = "";
+        if (!String.IsNullOrEmpty(datefromtxt.Text) && !String.IsNullOrEmpty(datetotxt.Text))
+        {
+            FromMonth = datefromtxt.Text;
+            ToMonth = datetotxt.Text;
+        }
+
+        string view = ddlView.Text;
+        if (view == "Vertical Wise")   ///|| view == "BU wise"
+        {
+            foreach (ListItem lst in lstBUVerticals.Items)
+                if (lst.Selected)
+                {
+
+                    lstSelected = lstSelected + lst.Value + ",";
+                    vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                }
+            ds = Reporting.GetAmendmentDetailedReport(view, FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+            ViewState["AmendmentdetailreportData"] = ds.Tables[0];
+        }
+        else if (view == "BU wise")   ///|| view == "BU wise"
+        {
+            foreach (ListItem lst in lstBUVerticals.Items)
+                if (lst.Selected)
+                {
+
+                    lstSelected = lstSelected + lst.Value + ",";
+                    vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                }
+            ds = Reporting.GetAmendmentDetailedReport(view, FromMonth, ToMonth, vertical, SessionData.CurrentUser.EmployeeId);
+        }
+        else
+        {
+            ds = Reporting.GetAmendmentDetailedReport("Vertical Wise", "", "", "", SessionData.CurrentUser.EmployeeId);
+            ViewState["AmendmentdetailreportData"] = ds.Tables[0];
+        }
+        //BindAmendmentDetailedReport(Reporting.GetAmendmentDetailedReport().Tables[0].DefaultView);
+        if (ds.Tables[0] != null && ds.Tables[0].Rows.Count > 0)
+        {
+            grdAmendmentDetailedReport.DataSource = ds.Tables[0];
+            grdAmendmentDetailedReport.Style.Add("Font-Names", "Verdana");
+            grdAmendmentDetailedReport.DataBind();
+        }
+        else
+        {
+            grdAmendmentDetailedReport.DataSource = null;
+            divexport.Visible = false;
+            grdAmendmentDetailedReport.Style.Add("Font-Names", "Verdana");
+            grdAmendmentDetailedReport.DataBind();
+        }
+
+        SetCurrentTabOtherReport();
+        trProjectReport.Style.Add("display", "none");
+        trLocationWiseReport.Style.Add("display", "none");
+        trMonthlyBuWiseReport.Style.Add("display", "none");
+        trAmendmentreport.Style.Add("display", "none");
+        trAmendmenDetailedReport.Style.Add("display", "block");
+        BpetProdPMOreport.Style.Add("display", "none");
+        trPipelineReports.Style.Add("display", "none");
+        trSummaryCOOReport.Style.Add("display", "none");
+        temp3.Style.Add("display", "none");
+        trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+        //ClearFields();
+    }
+
+    protected void SetCurrentTabOtherReport()
+    {
+        liOther.Attributes.Add("class", "tab-link current");
+        liAutomated.Attributes.Add("class", "tab-link");
+        lisummary.Attributes.Add("class", "tab-link");
+        tab3.Attributes.Add("class", "tab-content current");
+        tab1.Attributes.Add("class", "tab-content");
+        tab2.Attributes.Add("class", "tab-content");
+        CommonFilterContent.Style.Add("display", "block");
+
+        //trProjectReport.Style.Add("display", "block");
+    }
+    protected void SetSecondTabReport()
+    {
+        lisummary.Attributes.Add("class", "tab-link current");
+        tab3.Attributes.Add("class", "tab-content current");
+        tab1.Attributes.Add("class", "tab-content");
+        liAutomated.Attributes.Add("class", "tab-link");
+        liOther.Attributes.Add("class", "tab-link");
+    }
+    protected void SetCurrentTabFirstReport()
+    {
+        liOther.Attributes.Add("class", "tab-link");
+        liAutomated.Attributes.Add("class", "tab-link current");
+        lisummary.Attributes.Add("class", "tab-link");
+        tab3.Attributes.Add("class", "tab-content");
+        tab1.Attributes.Add("class", "tab-content current");
+        tab2.Attributes.Add("class", "tab-content");
+        CommonFilterContent.Style.Add("display", "block");
+
+        //trProjectReport.Style.Add("display", "block");
+    }
+    protected void ClearReports()
+    {
+        trProjectReport.Style.Add("display", "none");
+        trLocationWiseReport.Style.Add("display", "none");
+        trMonthlyBuWiseReport.Style.Add("display", "none");
+        trAmendmentreport.Style.Add("display", "none");
+        trAmendmenDetailedReport.Style.Add("display", "none");
+        BpetProdPMOreport.Style.Add("display", "none");
+        trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+    }
+    protected void ddlView_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        string ViewData = ddlView.SelectedItem.Text;
+        DivlstBU.Style.Add("display", "block");
+        BindVertical();
+        grdAmendmentLinkedData.Visible = false;
+        grdlinkfinancedata.Visible = false;
+        //if (ViewData == "Vertical Wise")
+        //{
+        //    DivlstBU.Style.Add("display", "none");
+        //}
+        //else
+        //{
+        //    //UpReport.Update();
+        //    DivlstBU.Style.Add("display", "block");
+        //    BindVertical();
+        //}
+    }
+
+    private void BindVertical()
+    {
+        try
+        {
+
+            // DataTable dt = BusinessLayer.DynamicReport.getDetails();
+            lstBUVerticals.SelectedIndex = -1;
+            DataSet ds = Reporting.GetDetails("GetVerticalForReport", SessionData.CurrentUser.EmployeeId);
+            //var dt = objDynamic.GetDetails('Team');
+            if (ds.Tables[0].Rows.Count == 0)
+            {
+                string msg = "No vertical is mapped for logged In User";
+                DivlstBU.Style.Add("display", "none");
+                ScriptManager.RegisterStartupScript(this.Page, this.GetType(), "Alert", "javascript:alert('" + msg + "');", true);
+            }
+            else
+            {
+                lstBUVerticals.DataSource = ds.Tables[0];
+                lstBUVerticals.DataTextField = "VerticalName";
+                lstBUVerticals.DataValueField = "VerticalName";
+                lstBUVerticals.DataBind();
+            }
+
+            // lstTeamName.Items.Insert(0, new ListItem("--Select--", "-1"));
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+    protected void ClearFields()
+    {
+        ddlView.SelectedIndex = -1;
+        datefromtxt.Text = "";
+        datetotxt.Text = "";
+        lstBUVerticals.SelectedIndex = -1;
+        DivlstBU.Style.Add("display", "none");
+    }
+
+    private bool ValidateItemSearch()
+    {
+        string msg = "";
+
+        if (datefromtxt.Text == "")
+            msg += "Please select From Date";
+
+
+        if (datetotxt.Text == "")
+            msg += "\\nPlease select To Date";
+
+
+        if (msg != "")
+        {
+
+            //ScriptManager.RegisterStartupScript(this, this.GetType(), "ShowStatus", "javascript:alert('Data added successfully');", true);
+            ScriptManager.RegisterStartupScript(this.Page, this.GetType(), "Alert", "javascript:alert('" + msg + "');", true);
+
+            //ScriptManager.RegisterStartupScript(this, this.GetType(), "ValidationMessage", "javascript:alert('" + msg + "');", true);
+            if (selected_tab.Value == "2")
+            {
+                SetSecondTabReport();
+            }
+            else if (selected_tab.Value == "3")
+            {
+                SetCurrentTabOtherReport();
+            }
+            return false;
+        }
+        return true;
+    }
+
+
+    protected void GrdLocationreport_DataBound(object sender, EventArgs e)
+    {
+        GridViewRow row = new GridViewRow(0, 0, DataControlRowType.Header, DataControlRowState.Normal);
+
+        TableHeaderCell cell = new TableHeaderCell();
+        cell.Text = "";
+        cell.ColumnSpan = 1;
+        cell.Height = 20;
+        row.Controls.Add(cell);
+
+        cell = new TableHeaderCell();
+        cell.Text = "Contractual";
+        cell.ColumnSpan = 4;
+        cell.Height = 20;
+        row.Controls.Add(cell);
+
+        cell = new TableHeaderCell();
+        cell.ColumnSpan = 4;
+        cell.Height = 20;
+        cell.Text = "Non Contractual";
+        row.Controls.Add(cell);
+
+        cell = new TableHeaderCell();
+        cell.ColumnSpan = 4;
+        cell.Text = "Grand Total";
+        cell.Height = 20;
+        row.Controls.Add(cell);
+
+        row.BackColor = ColorTranslator.FromHtml("#D3841F");
+        GrdLocationreport.HeaderRow.Parent.Controls.AddAt(0, row);
+    }
+
+    protected void GrdProjectStatusReport_DataBound(object sender, EventArgs e)
+    {
+        GridViewRow row = new GridViewRow(0, 0, DataControlRowType.Header, DataControlRowState.Normal);
+        DataTable dt = new DataTable();
+        DataTable dtquarter = new DataTable();
+        dt = (DataTable)ViewState["ProjectstatusReport"];
+        dtquarter = (DataTable)ViewState["ProjectQuarter"];
+        if (dt != null)
+        {
+            if (dt.Rows.Count > 0)
+            {
+                var Cellvalue1 = "";
+                var Cellvalue2 = "";
+                var Cellvalue3 = "";
+                var Cellvalue4 = "";
+                string Quartervalue = Convert.ToString(dtquarter.Rows[0][0]);
+                string[] quarter = Quartervalue.Split(',');
+                var quarterCount = quarter.Count();
+                if (quarterCount == 1)
+                {
+                    if (quarter[0] == "Q1")
+                        Cellvalue1 = "Quarter1";
+                    if (quarter[0] == "Q2")
+                        Cellvalue1 = "Quarter2";
+                    if (quarter[0] == "Q3")
+                        Cellvalue1 = "Quarter3";
+                    if (quarter[0] == "Q4")
+                        Cellvalue1 = "Quarter4";
+                }
+                else if (quarterCount == 2)
+                {
+                    if (quarter[0] == "Q1" && quarter[1] == "Q2")
+                    {
+                        Cellvalue1 = "Quarter1";
+                        Cellvalue2 = "Quarter2";
+                    }
+                    if (quarter[0] == "Q2" && quarter[1] == "Q3")
+                    {
+                        Cellvalue1 = "Quarter2";
+                        Cellvalue2 = "Quarter3";
+                    }
+                    if (quarter[0] == "Q3" && quarter[1] == "Q4")
+                    {
+                        Cellvalue1 = "Quarter3";
+                        Cellvalue2 = "Quarter4";
+                    }
+                }
+                else if (quarterCount == 3)
+                {
+                    if (quarter[0] == "Q1" && quarter[1] == "Q2" && quarter[2] == "Q3")
+                    {
+                        Cellvalue1 = "Quarter1";
+                        Cellvalue2 = "Quarter2";
+                        Cellvalue3 = "Quarter3";
+                    }
+                    if (quarter[0] == "Q2" && quarter[1] == "Q3" && quarter[2] == "Q4")
+                    {
+                        Cellvalue1 = "Quarter2";
+                        Cellvalue2 = "Quarter3";
+                        Cellvalue3 = "Quarter4";
+                    }
+                }
+                else if (quarterCount == 4)
+                {
+                    if (quarter[0] == "Q1" && quarter[1] == "Q2" && quarter[2] == "Q3" && quarter[3] == "Q4")
+                    {
+                        Cellvalue1 = "Quarter1";
+                        Cellvalue2 = "Quarter2";
+                        Cellvalue3 = "Quarter3";
+                        Cellvalue4 = "Quarter4";
+                    }
+                }
+
+
+                TableHeaderCell cell = new TableHeaderCell();
+                cell.Text = "BU/Vertical";
+                cell.ColumnSpan = 1;
+                cell.Height = 20;
+                cell.HorizontalAlign = HorizontalAlign.Center;
+                row.Controls.Add(cell);
+                int columnCount = dt.Columns.Count;
+                int finalcount = 1;
+                //if (columnCount == 7)
+                //    finalcount = 1;
+                //if (columnCount == 13)
+                //    finalcount = 1;
+                //if (columnCount == 19)
+                //    finalcount = 1;
+                //if (columnCount == 25)
+                //    finalcount = 1;
+
+                for (int i = 1; i <= finalcount; i++)
+                {
+                    if (columnCount == 7)
+                    {
+                        cell = new TableHeaderCell();
+                        cell.Text = Cellvalue1;
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+                    }
+
+
+                    if (columnCount == 13)
+                    {
+                        cell = new TableHeaderCell();
+                        cell.Text = Cellvalue1;
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+
+                        cell = new TableHeaderCell();
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.Text = Cellvalue2;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+                    }
+
+                    if (columnCount == 19)
+                    {
+                        cell = new TableHeaderCell();
+                        cell.Text = Cellvalue1;
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+
+                        cell = new TableHeaderCell();
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.Text = Cellvalue2;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+
+                        cell = new TableHeaderCell();
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.Text = Cellvalue3;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+                    }
+
+                    if (columnCount == 25)
+                    {
+                        cell = new TableHeaderCell();
+                        cell.Text = Cellvalue1;
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+
+                        cell = new TableHeaderCell();
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.Text = Cellvalue2;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+
+                        cell = new TableHeaderCell();
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.Text = Cellvalue3;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+
+                        cell = new TableHeaderCell();
+                        cell.ColumnSpan = 6;
+                        cell.Height = 20;
+                        cell.Text = Cellvalue4;
+                        cell.HorizontalAlign = HorizontalAlign.Center;
+                        row.Controls.Add(cell);
+                    }
+                }
+                row.BackColor = ColorTranslator.FromHtml("#D3841F");
+                GrdProjectStatusReport.HeaderRow.Parent.Controls.AddAt(0, row);
+
+            }
+        }
+
+    }
+
+    protected void GrdProjectStatusReport_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        if (e.Row.RowType == DataControlRowType.Header)
+        {
+            int i = 0;
+            DataTable dt = (DataTable)ViewState["ProjectstatusReport"];
+            dt = (DataTable)ViewState["ProjectstatusReport"];
+            if (dt != null)
+            {
+                if (dt.Rows.Count > 0)
+                {
+                    int columnCount = dt.Columns.Count;
+                    if (columnCount == 8)
+                    {
+                        e.Row.Cells[1].Text = "Projects initiated(Number)";
+                        e.Row.Cells[2].Text = "Projects initiated (%)";
+                        e.Row.Cells[3].Text = "Projects to be initiated";
+                        e.Row.Cells[4].Text = "Project Closed";
+                        e.Row.Cells[5].Text = "Total QNS Amount (USD) projected";
+                        e.Row.Cells[6].Text = "Total QNS Amount (USD) Signed off/Realised";
+                    }
+                    if (columnCount == 13)
+                    {
+                        for (i = 1; i < columnCount; i = i + 6)
+                        {
+                            e.Row.Cells[i].Text = "Projects initiated(Number)";
+                        }
+                        for (int j = 2; j < columnCount; j = j + 6)
+                        {
+                            e.Row.Cells[j].Text = "Projects initiated (%)";
+
+                        }
+                        for (int k = 3; k < columnCount; k = k + 6)
+                        {
+                            e.Row.Cells[k].Text = "Projects to be initiated";
+
+                        }
+                        for (int l = 4; l < columnCount; l = l + 6)
+                        {
+                            e.Row.Cells[l].Text = "Project Closed";
+
+                        }
+                        for (int l = 5; l < columnCount; l = l + 6)
+                        {
+                            e.Row.Cells[l].Text = "Total QNS Amount (USD) projected";
+
+                        }
+                        for (int m = 6; m < columnCount; m = m + 6)
+                        {
+                            e.Row.Cells[m].Text = "Total QNS Amount (USD) Signed off/Realised";
+
+                        }
+                    }
+                    if (columnCount == 19)
+                    {
+                        for (i = 1; i < columnCount; i = i + 6)
+                        {
+                            e.Row.Cells[i].Text = "Projects initiated(Number)";
+                        }
+                        for (int j = 2; j < columnCount; j = j + 6)
+                        {
+                            e.Row.Cells[j].Text = "Projects initiated (%)";
+
+                        }
+                        for (int k = 3; k < columnCount; k = k + 6)
+                        {
+                            e.Row.Cells[k].Text = "Projects to be initiated";
+
+                        }
+                        for (int l = 4; l < columnCount; l = l + 6)
+                        {
+                            e.Row.Cells[l].Text = "Project Closed";
+
+                        }
+                        for (int l = 5; l < columnCount; l = l + 6)
+                        {
+                            e.Row.Cells[l].Text = "Total QNS Amount (USD) projected";
+
+                        }
+                        for (int m = 6; m < columnCount; m = m + 6)
+                        {
+                            e.Row.Cells[m].Text = "Total QNS Amount (USD) Signed off/Realised";
+
+                        }
+                    }
+                    if (columnCount == 25)
+                    {
+                        for (i = 1; i < columnCount; i = i + 6)
+                        {
+                            e.Row.Cells[i].Text = "Projects initiated(Number)";
+                        }
+                        for (int j = 2; j < columnCount; j = j + 6)
+                        {
+                            e.Row.Cells[j].Text = "Projects initiated (%)";
+
+                        }
+                        for (int k = 3; k < columnCount; k = k + 6)
+                        {
+                            e.Row.Cells[k].Text = "Projects to be initiated";
+
+                        }
+                        for (int l = 4; l < columnCount; l = l + 6)
+                        {
+                            e.Row.Cells[l].Text = "Project Closed";
+
+                        }
+                        for (int l = 5; l < columnCount; l = l + 6)
+                        {
+                            e.Row.Cells[l].Text = "Total QNS Amount (USD) projected";
+
+                        }
+                        for (int m = 6; m < columnCount; m = m + 6)
+                        {
+                            e.Row.Cells[m].Text = "Total QNS Amount (USD) Signed off/Realised";
+
+                        }
+                    }
+
+                }
+            }
+
+
+        }
+
+    }
+
+    protected void reportselect_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        ClearFields();
+        //ddlView.SelectedIndex = 0;
+        //lstBUVerticals.SelectedIndex = 0;
+        int reportTypeVal = Convert.ToInt32(reportselect.SelectedValue);
+
+        if (reportTypeVal != 1)
+            BindReport();
+        else
+        {
+            BindProductivityTheme(null);
+            //emp.Vertical = PivotParameter();
+            BindProductivityPivot(null);
+
+        }
+        lblNoRecords.Visible = false;
+       //SetCurrentTabOtherReport();
+    }
+    protected void grdBpetProdPMO_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        //if (e.Row.RowType == DataControlRowType.Header)
+        //{
+        //    e.Row.Style["background-color"] = "#00FFFF";
+        //}
+
+    }
+    protected void BindBPETProdPMO(DataView dv1)
+    {
+        grdBpetProdPMO.DataSource = dv1;
+        grdBpetProdPMO.DataBind();
+        //trViewBy.Visible = false;
+        //trVerticalBU.Visible = false;
+        //DivlstBU.Visible = false;
+        //trPeriod.Visible = false;
+        //btnSearch.Visible = false;
+        //DivlstBU.Style.Add("display", "none");
+        //trPeriod.Style.Add("display", "none");
+        //btnSearch.Style.Add("display", "none");
+        SetCurrentTabOtherReport();
+        temp3.Style.Add("display", "none");
+        trSummaryCOOReport.Style.Add("display", "none");
+        BpetProdPMOreport.Style.Add("display", "block");
+        trPipelineReports.Style.Add("display", "none");
+        trProjectReport.Style.Add("display", "none");
+        trAmendmentreport.Style.Add("display", "none");
+        trAmendmenDetailedReport.Style.Add("display", "none");
+        trLocationWiseReport.Style.Add("display", "none");
+        trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+        trMonthlyBuWiseReport.Style.Add("display", "none");
+
+
+    }
+
+    //protected void BindAmendmentDetailedReport(DataView dv1)
+    //{
+    //    grdAmendmentDetailedReport.DataSource = dv1;
+    //    grdAmendmentDetailedReport.DataBind();
+
+
+    //}
+
+
+
+    /// <summary>
+    /// Bind Summary
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    public void BindCOOSummaryReport()
+    {
+        try
+        {
+            DataSet ds = new DataSet();
+            string view = ddlView.Text;
+            String FromMonth = "";
+            String ToMonth = "";
+            //its a business rule by default vertical wise report should be diplayed
+            if (ddlView.SelectedItem.Value == "--Select--")
+            {
+                view = "Vertical Wise";
+            }
+
+            if (!String.IsNullOrEmpty(datefromtxt.Text) && !String.IsNullOrEmpty(datetotxt.Text))
+            {
+                FromMonth = datefromtxt.Text;
+                ToMonth = datetotxt.Text;
+            }
+            else
+            {
+                //its a business rule if date is not selected it should display report for current month
+                DateTime now = DateTime.Now;
+                var currStartDate = new DateTime(now.Year, now.Month, 1);
+                var currEndDate = currStartDate.AddMonths(1).AddDays(-1);
+
+                FromMonth = currStartDate.ToString();
+                ToMonth = currEndDate.ToString();
+            }
+
+
+            if (view == "BU Wise")
+            {
+                string lstSelected = string.Empty;
+                string vertical = string.Empty;
+                foreach (ListItem lst in lstBUVerticals.Items)
+                    if (lst.Selected)
+                    {
+                        lstSelected = lstSelected + lst.Value + ",";
+                        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                    }
+                var VerticalList = String.Join(",", lstBUVerticals.Items.Cast<ListItem>().Where(item => item.Selected).Select(item => item.Text));
+                var VerticalListForXML = lstBUVerticals.Items.Cast<ListItem>().Where(item => item.Selected).Select(item => item.Text).ToList();
+                var VerticalListXML = ConvertDatatableToXML(VerticalListForXML, "Vertical");
+
+                ds = MonthlyTracker.GetSummaryRpt_COO(VerticalListXML, view, Convert.ToInt32(SessionData.CurrentUser.EmployeeId), Convert.ToDateTime(FromMonth), Convert.ToDateTime(ToMonth));
+            }
+            else
+            {
+                if (lstBUVerticals.SelectedIndex == -1)
+                {
+                    ds = MonthlyTracker.GetSummaryRpt_COO(null, view, Convert.ToInt32(SessionData.CurrentUser.EmployeeId), Convert.ToDateTime(FromMonth), Convert.ToDateTime(ToMonth));
+
+                }
+                else
+                {
+                    string lstSelected = string.Empty;
+                    string vertical = string.Empty;
+                    foreach (ListItem lst in lstBUVerticals.Items)
+                        if (lst.Selected)
+                        {
+                            lstSelected = lstSelected + lst.Value + ",";
+                            vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+                        }
+                    var VerticalList = String.Join(",", lstBUVerticals.Items.Cast<ListItem>().Where(item => item.Selected).Select(item => item.Text));
+                    var VerticalListForXML = lstBUVerticals.Items.Cast<ListItem>().Where(item => item.Selected).Select(item => item.Text).ToList();
+                    var VerticalListXML = ConvertDatatableToXML(VerticalListForXML, "Vertical");
+
+                    ds = MonthlyTracker.GetSummaryRpt_COO(VerticalListXML, view, Convert.ToInt32(SessionData.CurrentUser.EmployeeId), Convert.ToDateTime(FromMonth), Convert.ToDateTime(ToMonth));
+
+
+                }
+            }
+
+            if (ds.Tables.Count > 0 && ds.Tables[0] != null && ds.Tables[0].Rows.Count > 0)
+            {
+                int count = ds.Tables[0].Rows.Count;
+                ViewState["Count"] = count;
+                rptrCOOPMO.DataSource = ds;
+                rptrCOOPMO.DataBind();
+            }
+            else
+            {
+                rptrCOOPMO.DataSource = null;
+                rptrCOOPMO.DataBind();
+
+            }
+            if (selected_tab.Value == "2")
+            {
+                //liOther.Attributes.Add("class", "tab-link current");
+                //liAutomated.Attributes.Add("class", "tab-link");
+                SetSecondTabReport();
+                //tab1.Attributes.Add("class", "tab-content");
+                //tab2.Attributes.Add("class", "tab-content");
+                //CommonFilterContent.Style.Add("display", "block");
+            }
+            else if (selected_tab.Value == "3")
+            {
+                SetCurrentTabOtherReport();
+            }
+            trProjectReport.Style.Add("display", "none");
+            trLocationWiseReport.Style.Add("display", "none");
+            trMonthlyBuWiseReport.Style.Add("display", "none");
+            trAmendmentreport.Style.Add("display", "none");
+            trAmendmenDetailedReport.Style.Add("display", "none");
+            trSummaryCOOReport.Style.Add("display", "block");
+            BpetProdPMOreport.Style.Add("display", "none");
+            BpetProdPMOreport.Style.Add("display", "none");
+            trPipelineReports.Style.Add("display", "none");
+            trProjectReport.Style.Add("display", "none");
+            temp3.Style.Add("display", "none");
+            trPendingActionableBUQualitySPOC.Style.Add("display", "none");
+        }
+        catch (Exception ex)
+        {
+
+            throw;
+        }
+    }
+
+
+    protected void lknVerticalQuality_Click(object sender, EventArgs e)
+    {
+        int iRowIndex = ((GridViewRow)((LinkButton)sender).NamingContainer).RowIndex;
+        //LinkButton link = (LinkButton)
+        string view = ddlView.SelectedItem.Text;
+        string verticalname = grdAmendmentReportByQuality.DataKeys[iRowIndex].Values[0].ToString();
+        //reportselect.SelectedValue = "12";
+        //reportselect.SelectedIndex =
+        //         reportselect.Items.IndexOf(reportselect.Items.FindByValue("12"));
+        //DivlstBU.Style.Add("display", "none");
+
+        //trAmendmenDetailedReport.Style.Add("display", "block");
+        if (view == "Vertical Wise")
+        {
+            if (verticalname != "Grand Total")
+            {
+                String FromMonth = "";
+                String ToMonth = "";
+                if (!String.IsNullOrEmpty(datefromtxt.Text) && !String.IsNullOrEmpty(datetotxt.Text))
+                {
+                    FromMonth = datefromtxt.Text;
+                    ToMonth = datetotxt.Text;
+                }
+                ds = Reporting.GetAmendmentLinkData(FromMonth, ToMonth, verticalname, SessionData.CurrentUser.EmployeeId, view, "Quality");
+                if (ds.Tables[0] != null)
+                {
+                    if (ds.Tables[0].Rows.Count > 0)
+                    {
+                        grdAmendmentLinkedData.Visible = true;
+                        grdlinkfinancedata.Visible = false;
+                        grdAmendmentLinkedData.DataSource = ds.Tables[0];
+                        grdAmendmentLinkedData.DataBind();
+                    }
+                }
+                SetCurrentTabOtherReport();
+                trProjectReport.Style.Add("display", "none");
+                trLocationWiseReport.Style.Add("display", "none");
+                trMonthlyBuWiseReport.Style.Add("display", "none");
+                trAmendmentreport.Style.Add("display", "block");
+                BpetProdPMOreport.Style.Add("display", "none");
+            }
+        }
+        else //if (view == "BU Wise")
+        {
+            //foreach (ListItem lst in lstBUVerticals.Items)
+            //    if (lst.Selected)
+            //    {
+
+            //        lstSelected = lstSelected + lst.Value + ",";
+            //        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+            //    }
+
+            String FromMonth = "";
+            String ToMonth = "";
+            if (!String.IsNullOrEmpty(datefromtxt.Text) && !String.IsNullOrEmpty(datetotxt.Text))
+            {
+                FromMonth = datefromtxt.Text;
+                ToMonth = datetotxt.Text;
+            }
+            ds = Reporting.GetAmendmentLinkData(FromMonth, ToMonth, verticalname, SessionData.CurrentUser.EmployeeId, "Vertical Wise", "Quality");
+            if (ds.Tables[0] != null)
+            {
+                if (ds.Tables[0].Rows.Count > 0)
+                {
+                    grdAmendmentLinkedData.Visible = true;
+                    grdlinkfinancedata.Visible = false;
+                    grdAmendmentLinkedData.DataSource = ds.Tables[0];
+                    grdAmendmentLinkedData.DataBind();
+                }
+            }
+            SetCurrentTabOtherReport();
+            trProjectReport.Style.Add("display", "none");
+            trLocationWiseReport.Style.Add("display", "none");
+            trMonthlyBuWiseReport.Style.Add("display", "none");
+            trAmendmentreport.Style.Add("display", "block");
+            BpetProdPMOreport.Style.Add("display", "none");
+        }
+
+    }
+
+    protected void lknVerticalFinance_Click(object sender, EventArgs e)
+    {
+        int iRowIndex = ((GridViewRow)((LinkButton)sender).NamingContainer).RowIndex;
+
+        string verticalname = grdAmendmentReportBUFinance.DataKeys[iRowIndex].Values[0].ToString();
+
+        //reportselect.SelectedValue = "12";
+        //reportselect.SelectedIndex =
+        //         reportselect.Items.IndexOf(reportselect.Items.FindByValue("12"));
+        //DivlstBU.Style.Add("display", "none");
+        string view = ddlView.SelectedItem.Text;
+        //trAmendmenDetailedReport.Style.Add("display", "block");
+        if (view == "Vertical Wise")
+        {
+            if (verticalname != "Grand Total")
+            {
+                String FromMonth = "";
+                String ToMonth = "";
+                if (!String.IsNullOrEmpty(datefromtxt.Text) && !String.IsNullOrEmpty(datetotxt.Text))
+                {
+                    FromMonth = datefromtxt.Text;
+                    ToMonth = datetotxt.Text;
+                }
+                ds = Reporting.GetAmendmentLinkData(FromMonth, ToMonth, verticalname, SessionData.CurrentUser.EmployeeId, view, "Finance");
+                //BindAmendmentDetailedReport(Reporting.GetAmendmentDetailedReport().Tables[0].DefaultView);
+                if (ds.Tables[0] != null)
+                {
+                    if (ds.Tables[0].Rows.Count > 0)
+                    {
+                        grdAmendmentLinkedData.Visible = false;
+                        grdlinkfinancedata.Visible = true;
+                        grdlinkfinancedata.DataSource = ds.Tables[0];
+                        grdlinkfinancedata.DataBind();
+                    }
+
+                }
+                SetCurrentTabOtherReport();
+                trProjectReport.Style.Add("display", "none");
+                trLocationWiseReport.Style.Add("display", "none");
+                trMonthlyBuWiseReport.Style.Add("display", "none");
+                trAmendmentreport.Style.Add("display", "block");
+                BpetProdPMOreport.Style.Add("display", "none");
+            }
+        }
+        else
+        {
+            //foreach (ListItem lst in lstBUVerticals.Items)
+            //    if (lst.Selected)
+            //    {
+
+            //        lstSelected = lstSelected + lst.Value + ",";
+            //        vertical = lstSelected.Remove(lstSelected.LastIndexOf(','));
+            //    }
+
+            String FromMonth = "";
+            String ToMonth = "";
+            if (!String.IsNullOrEmpty(datefromtxt.Text) && !String.IsNullOrEmpty(datetotxt.Text))
+            {
+                FromMonth = datefromtxt.Text;
+                ToMonth = datetotxt.Text;
+            }
+            ds = Reporting.GetAmendmentLinkData(FromMonth, ToMonth, verticalname, SessionData.CurrentUser.EmployeeId, "Vertical Wise", "Finance");
+            if (ds.Tables[0] != null && ds.Tables[0].Rows.Count > 0)
+            {
+                grdAmendmentLinkedData.Visible = false;
+                grdlinkfinancedata.Visible = true;
+                grdlinkfinancedata.DataSource = ds.Tables[0];
+                grdlinkfinancedata.DataBind();
+            }
+            SetCurrentTabOtherReport();
+            trProjectReport.Style.Add("display", "none");
+            trLocationWiseReport.Style.Add("display", "none");
+            trMonthlyBuWiseReport.Style.Add("display", "none");
+            trAmendmentreport.Style.Add("display", "block");
+            BpetProdPMOreport.Style.Add("display", "none");
+        }
+
+
+    }
+
+    protected void GrdVerticalreport_DataBound(object sender, EventArgs e)
+    {
+        DataTable dtVerticalwise = new DataTable();
+        DataTable dtLocwise = new DataTable();
+        dtVerticalwise = (DataTable)ViewState["LocVerticalWiseReport"];
+        dtLocwise = (DataTable)ViewState["LocWiseReport"];
+
+        IEnumerable<string> location = from dt in dtLocwise.AsEnumerable()
+
+                                       select dt.Field<string>("Location");
+
+
+        GridViewRow rowMain = new GridViewRow(0, 0, DataControlRowType.Header, DataControlRowState.Normal);
+        GridViewRow row = new GridViewRow(1, 0, DataControlRowType.Header, DataControlRowState.Normal);
+
+        TableHeaderCell cellmain = new TableHeaderCell();
+        cellmain.Text = "BU/Vertical";
+        cellmain.ColumnSpan = 1;
+        cellmain.RowSpan = 2;
+        cellmain.Height = 20;
+        cellmain.BackColor = ColorTranslator.FromHtml("#D3841F");
+        cellmain.HorizontalAlign = HorizontalAlign.Center;
+        rowMain.Controls.Add(cellmain);
+
+        cellmain = new TableHeaderCell();
+        cellmain.Text = "";
+        cellmain.ColumnSpan = 4;
+        cellmain.Height = 20;
+        cellmain.HorizontalAlign = HorizontalAlign.Center;
+        rowMain.Controls.Add(cellmain);
+
+        TableHeaderCell cell = new TableHeaderCell();
+
+        cell = new TableHeaderCell();
+        cell.Text = "Grand Total";
+        cell.ColumnSpan = 4;
+        cell.Height = 20;
+        cell.HorizontalAlign = HorizontalAlign.Center;
+        row.Controls.Add(cell);
+
+        /*To create header for Location*/
+
+        //for (int i = 1; i < dtLocwise.Rows.Count; i++)
+        //{
+        //var locationcount = 0;
+        foreach (string locaname in location.ToList())
+        {
+            if (locaname != "Grand Total")
+            {
+                // locationcount = locationcount + 1;
+                cellmain = new TableHeaderCell();
+                cellmain.Text = locaname;
+                cellmain.ColumnSpan = 8;
+                cellmain.Height = 20;
+                cellmain.HorizontalAlign = HorizontalAlign.Center;
+                rowMain.Controls.Add(cellmain);
+
+                /*To create header for Contractual and non contractual*/
+                //for (int j = 3; j <= dtVerticalwise.Columns.Count - 4; j = j + 2)
+                //int loopcount = locationcount;
+                //int jcount = 5;
+                //if (locationcount != 1)
+                //{
+                //    jcount = jcount + 8;
+                //}
+
+                //for (int j = jcount; j < jcount + loopcount; j = j + 2)
+                //{
+
+                cell = new TableHeaderCell();
+                cell.ColumnSpan = 4;
+                cell.Height = 20;
+                cell.Text = "Contractual QNS";
+                cell.HorizontalAlign = HorizontalAlign.Center;
+                row.Controls.Add(cell);
+
+
+
+                cell = new TableHeaderCell();
+                cell.ColumnSpan = 4;
+                cell.Text = "Non Contractual QNS";
+                cell.Height = 20;
+                cell.HorizontalAlign = HorizontalAlign.Center;
+                row.Controls.Add(cell);
+                //}
+            }
+
+        }
+        row.BackColor = ColorTranslator.FromHtml("#D3841F");
+        GrdVerticalreport.HeaderRow.Parent.Controls.AddAt(0, rowMain);
+        GrdVerticalreport.HeaderRow.Parent.Controls.AddAt(1, row);
+
+    }
+    //rohit
+    protected void GrdVerticalreport_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        if (e.Row.RowType == DataControlRowType.Header)
+        {
+            int i;
+            e.Row.Cells[0].Style["background-color"] = "#D3841F";
+            e.Row.Cells[0].Attributes["width"] = "200px";
+            e.Row.Cells[0].Text = "";
+            for (i = 5; i < e.Row.Cells.Count; i = i + 4)
+            {
+                e.Row.Cells[i].Text = "Projection";
+
+            }
+
+            for (int j = 6; j < e.Row.Cells.Count; j = j + 4)
+            {
+                e.Row.Cells[j].Text = "Actual Realisation";
+
+            }
+
+
+            for (int k = 7; k < e.Row.Cells.Count; k = k + 4)
+            {
+                e.Row.Cells[k].Text = "Submitted by BU Finance";
+
+            }
+
+
+            for (int l = 8; l < e.Row.Cells.Count; l = l + 4)
+            {
+                e.Row.Cells[l].Text = "Rejected by BU Finance";
+
+            }
+        }
+
+        if (e.Row.RowType == DataControlRowType.DataRow)
+        {
+            for (int i = 0; i < e.Row.Cells.Count; i++)
+            {
+                if (e.Row.Cells[i].Text == "&nbsp;")
+                {
+                    e.Row.Cells[i].Text = "0";
+                }
+            }
+        }
+    }
+
+    public static string ConvertDatatableToXML(List<string> dataList, string columnName)
+    {
+        DataTable table = new DataTable();
+        table.Columns.Add(columnName.ToLower());
+        foreach (var array in dataList)
+        {
+            table.Rows.Add(array);
+        }
+        table.AcceptChanges();
+        table.TableName = columnName;
+
+        MemoryStream str = new MemoryStream();
+        table.WriteXml(str, true);
+        str.Seek(0, SeekOrigin.Begin);
+        StreamReader sr = new StreamReader(str);
+        string xmlstr;
+        xmlstr = sr.ReadToEnd();
+        return (xmlstr);
+    }
+
+    protected void grdAmendmentReportByQuality_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        if (e.Row.RowType == DataControlRowType.DataRow)
+        {
+            DataRowView drv = (DataRowView)e.Row.DataItem;
+            string colname = Convert.ToString(drv["BU/Vertical"]);
+            //((LinkButton)e.Row.Cells[0].FindControl("lnkbtnresend")).Enabled = false;
+            //LinkButton lnk = ((LinkButton)e.Row.Cells[0].FindControl("lknVerticalFinance"));
+            LinkButton lnk = (LinkButton)e.Row.FindControl("lknVerticalFinance");
+
+            Label lbl = (Label)e.Row.FindControl("lbllvertical");
+
+            //if (colname == "Grand Total")
+            //{
+            //    lbl.Visible = true;
+            //    //lnk.Visible = false;
+            //}
+            //else
+            //{
+            //    lbl.Visible = false;
+            //    //lnk.Visible = true;
+            //}
+        }
+    }
+
+    protected void grdAmendmentReportBUFinance_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        if (e.Row.RowType == DataControlRowType.DataRow)
+        {
+            DataRowView drv = (DataRowView)e.Row.DataItem;
+
+
+            if (e.Row.Cells[0].Text.Contains("Grand Total"))
+            {
+
+            }
+
+        }
+    }
+
+
+
+    protected void grdAmendmentLinkedData_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        if (e.Row.RowType == DataControlRowType.Header)
+        {
+            e.Row.Cells[19].Visible = false;
+            e.Row.Cells[25].Visible = false;
+            e.Row.Cells[30].Visible = false;
+            e.Row.Cells[31].Visible = false;
+            e.Row.Cells[32].Visible = false;
+            e.Row.Cells[33].Visible = false;
+            e.Row.Cells[34].Visible = false;
+            //e.Row.Cells[35].Visible = false;
+            //e.Row.Cells[36].Visible = false;
+            //e.Row.Cells[37].Visible = false;
+            //e.Row.Cells[38].Visible = false;
+            //e.Row.Cells[39].Visible = false;
+            //e.Row.Cells[40].Visible = false;
+            //e.Row.Cells[41].Visible = false;
+        }
+
+        if (e.Row.RowType == DataControlRowType.DataRow)
+        {
+            string projectid = e.Row.Cells[0].Text;
+            //string FinanceVAl = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["IsBUFinId"].ToString();
+            string QualityVAl = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["IsBuQualityId"].ToString();
+            //if (FinanceVAl == "True")
+            //{
+            //    string BenefirtypeVal = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdBenefitType"].ToString();
+            //    Label lblbenefit = (Label)e.Row.FindControl("lblbenefittypecategory");
+            //    if (lblbenefit.Text != BenefirtypeVal)
+            //    {
+            //        e.Row.Cells[14].BackColor = System.Drawing.Color.Yellow;
+            //    }
+
+            //    string leverVal = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdSUBCategory"].ToString();
+            //    Label lbllever = (Label)e.Row.FindControl("lbllever");
+            //    if (lbllever.Text != leverVal)
+            //    {
+            //        e.Row.Cells[6].BackColor = System.Drawing.Color.Yellow;
+            //    }
+
+            //    string qnsVal = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdQNSType"].ToString();
+            //    Label lblqns = (Label)e.Row.FindControl("lblqnstype");
+            //    if (lblqns.Text != qnsVal)
+            //    {
+            //        e.Row.Cells[9].BackColor = System.Drawing.Color.Yellow;
+            //    }
+
+            //    string methodologyVal = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdMethodology"].ToString();
+            //    Label lblmethodology = (Label)e.Row.FindControl("lblcalculationmethodology");
+            //    if (lblmethodology.Text != methodologyVal)
+            //    {
+            //        e.Row.Cells[15].BackColor = System.Drawing.Color.Yellow;
+            //    }
+
+            //    string startmonthval = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdStartMonth"].ToString();
+            //    Label lbllstartmonth = (Label)e.Row.FindControl("lblproejctdstartmonth");
+            //    if (lbllstartmonth.Text != startmonthval)
+            //    {
+            //        e.Row.Cells[10].BackColor = System.Drawing.Color.Yellow;
+            //    }
+
+
+            //    string ActualQnsVal = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdActualQns"].ToString();
+            //    Label lblActual = (Label)e.Row.FindControl("lblactualqns");
+            //    if (lblActual.Text != ActualQnsVal)
+            //    {
+            //        e.Row.Cells[13].BackColor = System.Drawing.Color.Yellow;
+            //    }
+
+            //}
+            if (QualityVAl == "True")
+            {
+
+                string leverVal = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdSUBCategory"].ToString();
+                Label lbllever = (Label)e.Row.FindControl("lbllever");
+                if (lbllever.Text != leverVal)
+                {
+                    //e.Row.Cells[6].BackColor = System.Drawing.Color.DodgerBlue;
+                    e.Row.Cells[6].Attributes["style"] = "background-color: #FFBF00";
+                }
+
+                string qnsVal = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdQNSType"].ToString();
+                Label lblqns = (Label)e.Row.FindControl("lblqnstype");
+                if (lblqns.Text != qnsVal)
+                {
+                    //e.Row.Cells[9].BackColor = System.Drawing.Color.DodgerBlue;
+                    if (lblqns.Text != "")
+                        e.Row.Cells[9].Attributes["style"] = "background-color: #FFBF00";
+                }
+
+                string startmonthval = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdStartMonth"].ToString();
+                Label lbllstartmonth = (Label)e.Row.FindControl("lblproejctdstartmonth");
+                if (lbllstartmonth.Text != startmonthval)
+                {
+                    //e.Row.Cells[10].BackColor = System.Drawing.Color.DodgerBlue;
+                    e.Row.Cells[10].Attributes["style"] = "background-color: #FFBF00";
+                }
+
+                string projectstatusval = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdProjectStatus"].ToString();
+                Label lblprojstatus = (Label)e.Row.FindControl("lblprojectstatus");
+                if (lblprojstatus.Text != projectstatusval)
+                {
+                    //e.Row.Cells[11].BackColor = System.Drawing.Color();
+                    e.Row.Cells[11].Attributes["style"] = "background-color: #FFBF00";
+                }
+
+                string tentativeval = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdTentativeQns"].ToString();
+                Label lbltentative = (Label)e.Row.FindControl("lbltentativeqns");
+                if (lbltentative.Text != tentativeval)
+                {
+                    //e.Row.Cells[12].BackColor = System.Drawing.Color.DodgerBlue;
+                    e.Row.Cells[12].Attributes["style"] = "background-color: #FFBF00";
+                }
+
+                string ActualQnsVal = grdAmendmentLinkedData.DataKeys[e.Row.RowIndex].Values["LastUpdActualQns"].ToString();
+                Label lblActual = (Label)e.Row.FindControl("lblactualqns");
+                if (lblActual.Text != ActualQnsVal)
+                {
+                    //e.Row.Cells[13].BackColor = System.Drawing.Color.DodgerBlue;
+                    e.Row.Cells[13].Attributes["style"] = "background-color: #FFBF00";
+                }
+
+            }
+
+            e.Row.Cells[19].Visible = false;
+            e.Row.Cells[25].Visible = false;
+            e.Row.Cells[30].Visible = false;
+            e.Row.Cells[31].Visible = false;
+            e.Row.Cells[32].Visible = false;
+            e.Row.Cells[33].Visible = false;
+            e.Row.Cells[34].Visible = false;
+            //e.Row.Cells[35].Visible = false;
+            //e.Row.Cells[36].Visible = false;
+            //e.Row.Cells[37].Visible = false;
+            //e.Row.Cells[38].Visible = false;
+            //e.Row.Cells[39].Visible = false;
+            //e.Row.Cells[40].Visible = false;
+            // e.Row.Cells[41].Visible = false;
+
+            Label lbllstartmonth2 = (Label)e.Row.FindControl("lblproejctdstartmonth");
+
+            string[] Separate = lbllstartmonth2.Text.Split(' ');
+            string desiredDate = Separate[0];
+            e.Row.Cells[10].Text = desiredDate;
+
+            //string qnsdate = e.Row.Cells[17].Text;
+            //string[] qnsSeparate = qnsdate.Split(' ');
+            //string qnsdesiredDate = qnsSeparate[0];
+            //e.Row.Cells[17].Text = qnsdesiredDate;
+        }
+
+    }
+
+    protected void ExportToExcel(object sender, EventArgs e)
+    {
+        string msg = "No records Found";
+        Response.Clear();
+        Response.Buffer = true;
+        Response.AddHeader("content-disposition", "attachment;filename=GridViewExport.xls");
+        Response.Charset = "";
+        Response.ContentType = "application/vnd.ms-excel";
+        using (StringWriter sw = new StringWriter())
+        {
+            HtmlTextWriter hw = new HtmlTextWriter(sw);
+            DataTable dt = new DataTable();
+            //To Export all pages
+            dt = (DataTable)ViewState["AmendmentdetailreportData"];
+            if (dt != null)
+            {
+                if (dt.Rows.Count > 0)
+                {
+                    grdAmendmentDetailedReport.AllowPaging = false;
+                    grdAmendmentDetailedReport.DataSource = dt;
+
+                    grdAmendmentDetailedReport.HeaderRow.BackColor = Color.White;
+                    foreach (TableCell cell in grdAmendmentDetailedReport.HeaderRow.Cells)
+                    {
+                        cell.BackColor = grdAmendmentDetailedReport.HeaderStyle.BackColor;
+                    }
+                    foreach (GridViewRow row in grdAmendmentDetailedReport.Rows)
+                    {
+                        row.BackColor = Color.White;
+                        foreach (TableCell cell in row.Cells)
+                        {
+                            if (row.RowIndex % 2 == 0)
+                            {
+                                cell.BackColor = grdAmendmentDetailedReport.AlternatingRowStyle.BackColor;
+                            }
+                            else
+                            {
+                                cell.BackColor = grdAmendmentDetailedReport.RowStyle.BackColor;
+                            }
+                            //cell.CssClass = "textmode";
+                        }
+                    }
+
+                    grdAmendmentDetailedReport.RenderControl(hw);
+
+                    //style to format numbers to string
+                    string style = @"<style> .textmode { } </style>";
+                    Response.Write(style);
+                    Response.Output.Write(sw.ToString());
+                    Response.Flush();
+                    Response.End();
+                }
+                else
+                {
+                    ScriptManager.RegisterStartupScript(this.Page, this.GetType(), "Alert", "javascript:alert('" + msg + "');", true);
+                }
+            }
+            else
+            {
+
+                ScriptManager.RegisterStartupScript(this.Page, this.GetType(), "Alert", "javascript:alert('" + msg + "');", true);
+            }
+
+        }
+    }
+
+    public override void VerifyRenderingInServerForm(Control control)
+    {
+        /* Verifies that the control is rendered */
+    }
+
+    protected void grdAmendmentDetailedReport_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+
+        if (e.Row.RowType == DataControlRowType.Header)
+        {
+            e.Row.Cells[18].Visible = false;
+            e.Row.Cells[50].Visible = false;
+            e.Row.Cells[53].Visible = false;
+            e.Row.Cells[54].Visible = false;
+            e.Row.Cells[55].Visible = false;
+            e.Row.Cells[56].Visible = false;
+            e.Row.Cells[57].Visible = false;
+            e.Row.Cells[58].Visible = false;
+            e.Row.Cells[59].Visible = false;
+           e.Row.Cells[60].Visible = false;
+
+        }
+
+        if (e.Row.RowType == DataControlRowType.DataRow)
+        {
+
+            string projectid = e.Row.Cells[0].Text;
+            string FinanceVAl = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["isBUFinId"].ToString();
+            string QualityVAl = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["isBUQualityId"].ToString();
+            if (FinanceVAl == "True")
+            {
+                string leverVal = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdSUBCategory"].ToString();
+                Label lbllever = (Label)e.Row.FindControl("lbllever");
+                if (lbllever.Text != leverVal)
+                {
+                    e.Row.Cells[10].BackColor = System.Drawing.Color.Yellow;
+                }
+
+                string qnsVal = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdQNSType"].ToString();
+                Label lblqns = (Label)e.Row.FindControl("lblqnstype");
+                if (lblqns.Text != qnsVal)
+                {
+                    if(lblqns.Text !="")
+                        e.Row.Cells[13].BackColor = System.Drawing.Color.Yellow;
+                }
+
+
+                string startmonthval = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdStartMonth"].ToString();
+                Label lbllstartmonth = (Label)e.Row.FindControl("lblproejctdstartmonth");
+                if (lbllstartmonth.Text != startmonthval)
+                {
+
+                    e.Row.Cells[16].BackColor = System.Drawing.Color.Yellow;
+                }
+
+                string methodologyVal = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdMethodology"].ToString();
+                Label lblmethodology = (Label)e.Row.FindControl("lblcalculationmethodology");
+                if (lblmethodology.Text != methodologyVal)
+                {
+                    e.Row.Cells[11].BackColor = System.Drawing.Color.Yellow;
+                }
+
+                string ActualQnsVal = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdActualQns"].ToString();
+                Label lblActual = (Label)e.Row.FindControl("lblactualqns");
+                if (lblActual.Text != ActualQnsVal)
+                {
+                    e.Row.Cells[32].BackColor = System.Drawing.Color.Yellow;
+                }
+            }
+            else if (QualityVAl == "True")
+            {
+
+                string leverVal = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdSUBCategory"].ToString();
+                Label lbllever = (Label)e.Row.FindControl("lbllever");
+                if (lbllever.Text != leverVal)
+                {
+                    e.Row.Cells[10].BackColor = System.Drawing.Color.Yellow;
+                }
+
+                string qnsVal = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdQNSType"].ToString();
+                Label lblqns = (Label)e.Row.FindControl("lblqnstype");
+                if (lblqns.Text != qnsVal)
+                {
+                    if (lblqns.Text != "")
+                        e.Row.Cells[13].BackColor = System.Drawing.Color.Yellow;
+                }
+
+
+                string startmonthval = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdStartMonth"].ToString();
+                Label lbllstartmonth = (Label)e.Row.FindControl("lblproejctdstartmonth");
+                if (lbllstartmonth.Text != startmonthval)
+                {
+                    e.Row.Cells[16].BackColor = System.Drawing.Color.Yellow;
+                }
+
+                string projectstatusval = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdProjectStatus"].ToString();
+                Label lblprojstatus = (Label)e.Row.FindControl("lblprojectstatus");
+                if (lblprojstatus.Text != projectstatusval)
+                {
+                    e.Row.Cells[15].BackColor = System.Drawing.Color.Yellow;
+                }
+
+
+                string ActualQnsVal = grdAmendmentDetailedReport.DataKeys[e.Row.RowIndex].Values["LastUpdActualQns"].ToString();
+                Label lblActual = (Label)e.Row.FindControl("lblactualqns");
+                if (lblActual.Text != ActualQnsVal)
+                {
+                    e.Row.Cells[32].BackColor = System.Drawing.Color.Yellow;
+                }
+
+
+            }
+            e.Row.Cells[18].Visible = false;
+            e.Row.Cells[50].Visible = false;
+            e.Row.Cells[53].Visible = false;
+            e.Row.Cells[54].Visible = false;
+            e.Row.Cells[55].Visible = false;
+            e.Row.Cells[56].Visible = false;
+            e.Row.Cells[57].Visible = false;
+            e.Row.Cells[58].Visible = false;
+            e.Row.Cells[59].Visible = false;
+            e.Row.Cells[60].Visible = false;
+
+
+            Label lbllstartmonth2 = (Label)e.Row.FindControl("lblproejctdstartmonth");
+
+            string[] Separate = lbllstartmonth2.Text.Split(' ');
+            string desiredDate = Separate[0];
+            e.Row.Cells[16].Text = desiredDate;
+
+            string qnsdate = e.Row.Cells[17].Text;
+            string[] qnsSeparate = qnsdate.Split(' ');
+            string qnsdesiredDate = qnsSeparate[0];
+            e.Row.Cells[17].Text = qnsdesiredDate;
+
+        }
+    }
+
+
+    protected void ImgExportPendingActionableBUQualitySPOC_Click(object sender, ImageClickEventArgs e)
+    {
+        ExportExcel_Monthly();
+    }
+
+    public void ExportExcel_Monthly()
+    {
+        DateTime? FromMonth = null;
+        DateTime? ToMonth = null;
+        if (!string.IsNullOrEmpty(datefromtxt.Text) && !string.IsNullOrEmpty(datetotxt.Text))
+        {
+            FromMonth = DateTime.Parse(datefromtxt.Text);
+            ToMonth = DateTime.Parse(datetotxt.Text);
+        }
+
+        emp.Vertical = PivotParameter();
+
+        DataSet dsExport = new DataSet();
+        dsExport = Reporting.GetPendingActionableBUQualitySPOCReport(FromMonth, ToMonth, emp.Vertical);
+        if (dsExport != null)
+        {
+            if (dsExport.Tables[0].Rows.Count > 0)
+            {
+                GridView gv = new GridView();
+                gv.DataSource = dsExport;
+                gv.DataBind();
+
+                Response.Charset = "";
+                string attachment = "attachment; filename=PendingActionableBUQualitySPOC.xls";
+                Response.ClearContent();
+                Response.Cache.SetCacheability(HttpCacheability.NoCache);
+                Response.AppendHeader("Content-Type", "application/vnd.ms-excel");
+                Response.AddHeader("content-disposition", attachment);
+                Response.ContentType = "application/ms-excel";
+                this.EnableViewState = false;
+                HtmlTextWriter htmlWrite = new HtmlTextWriter(Response.Output);
+                gv.HeaderStyle.BackColor = System.Drawing.ColorTranslator.FromHtml("#DCDCDC");
+                gv.RenderControl(htmlWrite);
+                Response.End();
+            }
+        }
+    }
+
+    protected void grdlinkfinancedata_RowDataBound(object sender, GridViewRowEventArgs e)
+    {
+        if (e.Row.RowType == DataControlRowType.Header)
+        {
+            e.Row.Cells[19].Visible = false;
+            e.Row.Cells[25].Visible = false;
+            e.Row.Cells[30].Visible = false;
+            e.Row.Cells[31].Visible = false;
+            e.Row.Cells[32].Visible = false;
+            e.Row.Cells[33].Visible = false;
+            e.Row.Cells[34].Visible = false;
+            //e.Row.Cells[35].Visible = false;
+            //e.Row.Cells[36].Visible = false;
+            //e.Row.Cells[37].Visible = false;
+            //e.Row.Cells[38].Visible = false;
+            //e.Row.Cells[39].Visible = false;
+            //e.Row.Cells[40].Visible = false;
+            //e.Row.Cells[41].Visible = false;
+        }
+
+        if (e.Row.RowType == DataControlRowType.DataRow)
+        {
+            string projectid = e.Row.Cells[0].Text;
+            string FinanceVAl = grdlinkfinancedata.DataKeys[e.Row.RowIndex].Values["IsBUFinId"].ToString();
+            if (FinanceVAl == "True")
+            {
+                string BenefirtypeVal = grdlinkfinancedata.DataKeys[e.Row.RowIndex].Values["LastUpdBenefitType"].ToString();
+                Label lblbenefit = (Label)e.Row.FindControl("lblbenefittypecategory");
+                if (lblbenefit.Text != BenefirtypeVal)
+                {
+                    e.Row.Cells[12].BackColor = System.Drawing.Color.Yellow;
+                }
+
+                string leverVal = grdlinkfinancedata.DataKeys[e.Row.RowIndex].Values["LastUpdSUBCategory"].ToString();
+                Label lbllever = (Label)e.Row.FindControl("lbllever");
+                if (lbllever.Text != leverVal)
+                {
+                    e.Row.Cells[6].BackColor = System.Drawing.Color.Yellow;
+                }
+
+                string qnsVal = grdlinkfinancedata.DataKeys[e.Row.RowIndex].Values["LastUpdQNSType"].ToString();
+                Label lblqns = (Label)e.Row.FindControl("lblqnstype");
+                if (lblqns.Text != qnsVal)
+                {
+                    if(lblqns.Text != "")
+                        e.Row.Cells[9].BackColor = System.Drawing.Color.Yellow;
+                }
+
+                string methodologyVal = grdlinkfinancedata.DataKeys[e.Row.RowIndex].Values["LastUpdMethodology"].ToString();
+                Label lblmethodology = (Label)e.Row.FindControl("lblcalculationmethodology");
+
+                if (lblmethodology.Text != methodologyVal)
+                {
+                    if (methodologyVal.ToString() != "")
+                        e.Row.Cells[13].BackColor = System.Drawing.Color.Yellow;
+                }
+                
+
+                string startmonthval = grdlinkfinancedata.DataKeys[e.Row.RowIndex].Values["LastUpdStartMonth"].ToString();
+                Label lbllstartmonth = (Label)e.Row.FindControl("lblproejctdstartmonth");
+                if (lbllstartmonth.Text != startmonthval)
+                {
+                    e.Row.Cells[10].BackColor = System.Drawing.Color.Yellow;
+                }
+
+
+                string ActualQnsVal = grdlinkfinancedata.DataKeys[e.Row.RowIndex].Values["LastUpdActualQns"].ToString();
+                Label lblActual = (Label)e.Row.FindControl("lblactualqns");
+                if (lblActual.Text != ActualQnsVal)
+                {
+                    if(lblActual.Text != "")
+                        e.Row.Cells[11].BackColor = System.Drawing.Color.Yellow;
+                }
+
+            }
+            e.Row.Cells[19].Visible = false;
+            e.Row.Cells[25].Visible = false;
+            e.Row.Cells[30].Visible = false;
+            e.Row.Cells[31].Visible = false;
+            e.Row.Cells[32].Visible = false;
+            e.Row.Cells[33].Visible = false;
+            e.Row.Cells[34].Visible = false;
+            //e.Row.Cells[35].Visible = false;
+            //e.Row.Cells[36].Visible = false;
+            //e.Row.Cells[37].Visible = false;
+            //e.Row.Cells[38].Visible = false;
+            //e.Row.Cells[39].Visible = false;
+            //e.Row.Cells[40].Visible = false;
+            // e.Row.Cells[41].Visible = false;
+            Label lbllstartmonth2 = (Label)e.Row.FindControl("lblproejctdstartmonth");
+
+            string[] Separate = lbllstartmonth2.Text.Split(' ');
+            string desiredDate = Separate[0];
+            e.Row.Cells[10].Text = desiredDate;
+        }
+    }
+    protected void COOPMO_ItemDataBound(object sender, RepeaterItemEventArgs e)
+    {
+        string sMonth = DateTime.Now.ToString("MM");
+        if (e.Item.ItemType == ListItemType.Item || e.Item.ItemType == ListItemType.AlternatingItem)
+        {
+            HtmlTableCell tdFinQ1 = (HtmlTableCell)e.Item.FindControl("tdFinQ1");
+            HtmlTableCell tdFinQ2 = (HtmlTableCell)e.Item.FindControl("tdFinQ2");
+            HtmlTableCell tdFinQ3 = (HtmlTableCell)e.Item.FindControl("tdFinQ3");
+            HtmlTableCell tdFinQ4 = (HtmlTableCell)e.Item.FindControl("tdFinQ4");
+            HtmlTableCell tdQ1ActSaving = (HtmlTableCell)e.Item.FindControl("tdQ1ActSaving");
+            HtmlTableCell tdQ2ActSaving = (HtmlTableCell)e.Item.FindControl("tdQ2ActSaving");
+            HtmlTableCell tdQ3ActSaving = (HtmlTableCell)e.Item.FindControl("tdQ3ActSaving");
+            HtmlTableCell tdQ4ActSaving = (HtmlTableCell)e.Item.FindControl("tdQ4ActSaving");
+
+            if (sMonth == "04" || sMonth == "05" || sMonth == "06")
+            {
+                tdFinQ2.Visible = false;
+                tdFinQ3.Visible = false;
+                tdFinQ4.Visible = false;
+                tdQ2ActSaving.Visible = false;
+                tdQ3ActSaving.Visible = false;
+                tdQ4ActSaving.Visible = false;
+            }
+            else if (sMonth == "07" || sMonth == "08" || sMonth == "09")
+            {
+                ////As discussed with BA in front of Jyoti on 17 July 2018 ,Changing display of "Finance Signed off savings" and "WIP" columns 
+                ////Earlier requirment was "Finance Signed off savings" and "WIP" columns should be visible for current quarter only
+                ////As per new UAT feedback ,"Finance Signed off savings" and "WIP" columns should be visible from first quarter till current quarter
+                ////Changes starts here  
+                //tdFinQ1.Visible = false;
+                //tdQ1ActSaving.Visible = false;
+                ////Changes ends here
+                tdFinQ3.Visible = false;
+                tdFinQ4.Visible = false;
+                tdQ3ActSaving.Visible = false;
+                tdQ4ActSaving.Visible = false;
+            }
+            else if (sMonth == "10" || sMonth == "11" || sMonth == "12")
+            {
+                ////As discussed with BA in front of Jyoti on 17 July 2018 ,Changing display of "Finance Signed off savings" and "WIP" columns 
+                ////Earlier requirment was "Finance Signed off savings" and "WIP" columns should be visible for current quarter only
+                ////As per new UAT feedback ,"Finance Signed off savings" and "WIP" columns should be visible from first quarter till current quarter
+                ////Changes starts here  
+                //tdFinQ1.Visible = false;
+                //tdFinQ2.Visible = false;
+                //tdQ1ActSaving.Visible = false;
+                //tdQ2ActSaving.Visible = false;
+                ////Changes ends here
+                tdFinQ4.Visible = false;
+                tdQ4ActSaving.Visible = false;
+            }
+            ////As discussed with BA in front of Jyoti on 17 July 2018 ,Changing display of "Finance Signed off savings" and "WIP" columns 
+            ////Earlier requirment was "Finance Signed off savings" and "WIP" columns should be visible for current quarter only
+            ////As per new UAT feedback ,"Finance Signed off savings" and "WIP" columns should be visible from first quarter till current quarter
+            ////Changes starts here  
+            //else if (sMonth == "01" || sMonth == "02" || sMonth == "03")
+            //{
+            //    tdFinQ1.Visible = false;
+            //    tdFinQ2.Visible = false;
+            //    tdFinQ3.Visible = false;
+            //    tdQ1ActSaving.Visible = false;
+            //    tdQ2ActSaving.Visible = false;
+            //    tdQ3ActSaving.Visible = false;
+            //}
+            ////Changes ends here
+
+            DataRowView drv = e.Item.DataItem as DataRowView;
+            if (!string.IsNullOrEmpty(drv["DeltaOverAll"].ToString()))
+            {
+                Decimal delta = Convert.ToDecimal(drv["DeltaOverAll"]);
+                if (delta < Convert.ToDecimal(0.000000))
+                {
+                    HtmlTableCell lbl = (HtmlTableCell)e.Item.FindControl("tdOverallDelta");
+                    lbl.Attributes.Add("style", "background-color:Red;");
+                }
+                else
+                {
+                    HtmlTableCell lbl = (HtmlTableCell)e.Item.FindControl("tdOverallDelta");
+                    lbl.Attributes.Add("style", "background-color:Green;");
+
+                }
+            }
+        }
+        if (e.Item.ItemType == ListItemType.Header)
+        {
+            HtmlTableCell thQ1 = (HtmlTableCell)e.Item.FindControl("thQ1");
+            HtmlTableCell thQ2 = (HtmlTableCell)e.Item.FindControl("thQ2");
+            HtmlTableCell thQ3 = (HtmlTableCell)e.Item.FindControl("thQ3");
+            HtmlTableCell thQ4 = (HtmlTableCell)e.Item.FindControl("thQ4");
+            HtmlTableCell thFinQ1 = (HtmlTableCell)e.Item.FindControl("thFinQ1");
+            HtmlTableCell thFinQ2 = (HtmlTableCell)e.Item.FindControl("thFinQ2");
+            HtmlTableCell thFinQ3 = (HtmlTableCell)e.Item.FindControl("thFinQ3");
+            HtmlTableCell thFinQ4 = (HtmlTableCell)e.Item.FindControl("thFinQ4");
+            HtmlTableCell thWip1 = (HtmlTableCell)e.Item.FindControl("thWip1");
+            HtmlTableCell thWip2 = (HtmlTableCell)e.Item.FindControl("thWip2");
+            HtmlTableCell thWip3 = (HtmlTableCell)e.Item.FindControl("thWip3");
+            HtmlTableCell thWip4 = (HtmlTableCell)e.Item.FindControl("thWip4");
+
+            if (sMonth == "04" || sMonth == "05" || sMonth == "06")
+            {
+                thQ1.Attributes.Add("colspan", "4");
+                thQ2.Attributes.Add("colspan", "2");
+                thQ3.Attributes.Add("colspan", "2");
+                thQ4.Attributes.Add("colspan", "2");
+                thFinQ2.Visible = false;
+                thFinQ3.Visible = false;
+                thFinQ4.Visible = false;
+                thWip2.Visible = false;
+                thWip3.Visible = false;
+                thWip4.Visible = false;
+
+            }
+            else if (sMonth == "07" || sMonth == "08" || sMonth == "09")
+            {
+                ////As discussed with BA in front of Jyoti on 17 July 2018 ,Changing display of "Finance Signed off savings" and "WIP" columns 
+                ////Earlier requirment was "Finance Signed off savings" and "WIP" columns should be visible for current quarter only
+                ////As per new UAT feedback ,"Finance Signed off savings" and "WIP" columns should be visible from first quarter till current quarter
+                ////Changes starts here 
+                //thQ1.Attributes.Add("colspan", "2");
+                //thFinQ1.Visible = false;
+                //thWip1.Visible = false;
+                ////Changes ends here 
+                thQ1.Attributes.Add("colspan", "4");
+                thQ2.Attributes.Add("colspan", "4");
+                thQ3.Attributes.Add("colspan", "2");
+                thQ4.Attributes.Add("colspan", "2");
+
+                thFinQ3.Visible = false;
+                thFinQ4.Visible = false;
+                thWip3.Visible = false;
+                thWip4.Visible = false;
+
+            }
+            else if (sMonth == "10" || sMonth == "11" || sMonth == "12")
+            {
+                ////As discussed with BA in front of Jyoti on 17 July 2018 ,Changing display of "Finance Signed off savings" and "WIP" columns 
+                ////Earlier requirment was "Finance Signed off savings" and "WIP" columns should be visible for current quarter only
+                ////As per new UAT feedback ,"Finance Signed off savings" and "WIP" columns should be visible from first quarter till current quarter
+                ////Changes starts here
+                //thQ1.Attributes.Add("colspan", "2");
+                //thQ2.Attributes.Add("colspan", "2");
+                //thFinQ1.Visible = false;
+                //thFinQ2.Visible = false;
+                //thWip1.Visible = false;
+                //thWip2.Visible = false;
+                ////Changes ends here 
+                thQ1.Attributes.Add("colspan", "4");
+                thQ2.Attributes.Add("colspan", "4");
+                thQ3.Attributes.Add("colspan", "4");
+                thQ4.Attributes.Add("colspan", "2");
+                thFinQ4.Visible = false;
+                thWip4.Visible = false;
+
+            }
+            else if (sMonth == "01" || sMonth == "02" || sMonth == "03")
+            {
+                ////As discussed with BA in front of Jyoti on 17 July 2018 ,Changing display of "Finance Signed off savings" and "WIP" columns 
+                ////Earlier requirment was "Finance Signed off savings" and "WIP" columns should be visible for current quarter only
+                ////As per new UAT feedback ,"Finance Signed off savings" and "WIP" columns should be visible from first quarter till current quarter
+                ////Changes starts here
+                //thQ1.Attributes.Add("colspan", "2");
+                //thQ2.Attributes.Add("colspan", "2");
+                //thQ3.Attributes.Add("colspan", "2");
+                //thFinQ1.Visible = false;
+                //thFinQ3.Visible = false;
+                //thFinQ2.Visible = false;
+                //thWip1.Visible = false;
+                //thWip3.Visible = false;
+                //thWip2.Visible = false;
+                ////Changes ends here 
+                thQ1.Attributes.Add("colspan", "4");
+                thQ2.Attributes.Add("colspan", "4");
+                thQ3.Attributes.Add("colspan", "4");
+                thQ4.Attributes.Add("colspan", "4");
+
+            }
+        }
+
+    }
+
+    protected void grdAmendmentDetailedReport_PageIndexChanging(object sender, GridViewPageEventArgs e)
+    {
+        grdAmendmentDetailedReport.PageIndex = e.NewPageIndex;
+        grdAmendmentDetailedReport.DataSource = ViewState["AmendmentdetailreportData"];
+        grdAmendmentDetailedReport.DataBind();
+    }
+
+    protected void GrdProjectStatusReport_RowCreated(object sender, GridViewRowEventArgs e)
+    {
+        //e.Row.Cells[1].Visible = false;
+    }
+
+    protected void btnProductivityConsolidated_Click(object sender, EventArgs e)
+    {
+        int AppRole = 0;
+        int AppRoleId = 0;
+        string[] Roles = SessionData.CurrentUser.AppRoleID.Split(',');
+        foreach (string RoleId in Roles)
+        {
+            AppRole = Convert.ToInt32(RoleId);
+            if (AppRole == (int)Role.BUQualitySPOC)
+                AppRoleId = 70;
+            else if (AppRole == (int)Role.BUFinanceSPOC)
+                AppRoleId = 80;
+            else if (AppRole == (int)Role.BPETProductivityPMO)
+                AppRoleId = 90;
+            else if (AppRole == (int)Role.COOPMO)
+                AppRoleId = 100;
+            else if (AppRole == (int)Role.VQL)
+                AppRoleId = 110;
+            else
+                AppRoleId = AppRole;
+
+        }
+        BindProductivityConsolidatedReport(Employee.GetProductivityConsolidatedReport("", "", SessionData.CurrentUser.EmployeeId, Convert.ToString(AppRoleId)).Tables[0].DefaultView);
+        divConsol.Visible = true;
+        divConsolQuarter.Visible = false;
+    }
+
+    protected void btnProductivityConsolidatedQ_Click(object sender, EventArgs e)
+    {
+        int AppRole = 0;
+        int AppRoleId = 0;
+        string[] Roles = SessionData.CurrentUser.AppRoleID.Split(',');
+        foreach (string RoleId in Roles)
+        {
+            AppRole = Convert.ToInt32(RoleId);
+            if (AppRole == (int)Role.BUQualitySPOC)
+                AppRoleId = 70;
+            else if (AppRole == (int)Role.BUFinanceSPOC)
+                AppRoleId = 80;
+            else if (AppRole == (int)Role.BPETProductivityPMO)
+                AppRoleId = 90;
+            else if (AppRole == (int)Role.COOPMO)
+                AppRoleId = 100;
+            else if (AppRole == (int)Role.VQL)
+                AppRoleId = 110;
+            else
+                AppRoleId = AppRole;
+
+        }
+
+        BindProductivityConsolidatedReportQuarter(MonthlyTracker.GetProductivityConsolidatedReportQuarter("", "", SessionData.CurrentUser.EmployeeId, Convert.ToString(AppRoleId)).Tables[0].DefaultView);
+        divConsolQuarter.Visible = true;
+        divConsol.Visible = false;
+    }
+}
+
+
+data access layer:
+ public static DataSet GetLocationWiseReport(string flag, DateTime? frommonth, DateTime? tomonth, string vertical, string Empid)   //
+    {
+        try
+        {
+            Database db = DatabaseFactory.CreateDatabase("BPET_DATABASE");
+            DbCommand cmd = db.GetStoredProcCommand("[Proc_GetLocationWiseReport_DualRole]");
+            cmd.CommandTimeout = 3600000;
+            // db.AddInParameter(cmd, "@View", DbType.String, view);
+            db.AddInParameter(cmd, "@Flag", DbType.String, flag);
+            // db.AddInParameter(cmd, "@View", DbType.String, view);
+            db.AddInParameter(cmd, "@FromMonth", DbType.DateTime, frommonth);
+            db.AddInParameter(cmd, "@ToMonth", DbType.DateTime, tomonth);
+            db.AddInParameter(cmd, "@Vertical", DbType.String, vertical);
+            db.AddInParameter(cmd, "@EmployeeID", DbType.String, Empid);
+            return db.ExecuteDataSet(cmd);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+    
+    4.to find page name by session on other page
+    string pagename = (string)Session["pageName"];
+        if (pagename != null)
+        {
+            if (pagename == "Flow10AllStepView.aspx" || pagename == "Flow10AllStepEdit.aspx" || pagename == "Flow20AllStepView.aspx" || pagename == "Flow20AllStepEdit.aspx")   //Flow20AllStepView,Flow20AllStepEdit
+            {
+                btnback.Visible = false;
+            }
+
+        }
+    5.date time month value into name of month 
+      DateTime now = DateTime.Now;
+                string month = now.ToString("MMMM");
+                
+     6.to handle null an dempty string 
+     string.IsNullOrEmpty(ViewState["dateActual"].ToString()) && !string.IsNullOrEmpty(txtActualQNSStartMonth.Text)
+    
+    
