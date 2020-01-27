@@ -112,3 +112,57 @@
         }
         return func;
     }
+
+
+ applyCommonFilter(filterValue: string) {
+    filterValue = filterValue.trim();
+    //filterValue = filterValue.toLowerCase();
+    //filterValue = filterValue.toUpperCase();
+    this.CommonFilterText = filterValue;
+    var abc;
+
+
+    //this.gridDataSourceCopy.filter = filterValue;
+    // if (this.wiringCheck.ModuleTo != "") {
+    //   abc = this.dataList.filter(x => (x.FROM_EQUIP_NO.includes(this.CommonFilterText.toUpperCase()) || x.TO_FINAL_EQUIP_NO.includes(this.CommonFilterText.toUpperCase())
+    //     || x.TO_FINAL_TERM_POSITION.includes(this.CommonFilterText.toUpperCase()) || x.BUNDLE_NO.includes(this.CommonFilterText.toUpperCase())
+    //     || x.FROM_TERM_POSITION.includes(this.CommonFilterText.toUpperCase()) || x.WIRE_DIAGRAM.includes(this.CommonFilterText.toUpperCase())));
+    // }
+    // else {
+    //   abc = this.dataList.filter(x => (x.FROM_EQUIP_NO.includes(this.CommonFilterText.toUpperCase()) || x.TO_EQUIP_NO.includes(this.CommonFilterText.toUpperCase())
+    //     || x.TO_FINAL_TERM_POSITION.includes(this.CommonFilterText.toUpperCase()) || x.BUNDLE_NO.includes(this.CommonFilterText.toUpperCase())
+    //     || x.FROM_TERM_POSITION.includes(this.CommonFilterText.toUpperCase()) || x.WIRE_DIAGRAM.includes(this.CommonFilterText.toUpperCase())));
+    // }
+
+
+    const columns = (Object.keys(this.dataList[0]));
+ 
+    if (filterValue != undefined && filterValue != "" && filterValue != null) {
+     
+      //this.gridDataSource.filterPredicate = (data: { id: string }, filter: string): boolean => { return true };
+      this.gridDataSource.filterPredicate = this.createFilter();
+    }
+    this.gridDataSource = new MatTableDataSource(this.dataList);
+    this.gridDataSource.filter = filterValue;
+    this.gridDataSource.filteredData.length === 0 ? this.noDataFound = true : this.noDataFound = false;
+    this.VisibleSearch = true;
+  }
+
+
+  createFilter(): (data: any, filter: any) => boolean {
+    const filterFunction = function(data, filter): boolean {
+      console.log(filter);
+      const searchData = JSON.parse(filter);
+      let status = false;
+      for (const key in searchData) {
+        if (data[key].indexOf(searchData[key]) !== -1) {
+          status = true;
+        } else {
+          status = false;
+          break;
+        }
+      }
+      return status;
+    };
+    return filterFunction;
+  }
