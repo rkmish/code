@@ -166,3 +166,9 @@
     };
     return filterFunction;
   }
+
+ const columns = (Object.keys(GridData.Table1[0]));
+            // this.displayedColumns = ["WIRE_DIAGRAM", "BUNDLE_NO", "EFFECTIVITY", "FROM_EQUIP_NO", "FROM_TERM_POSITION", 
+            // "CONNECTION EQUIPMENT NUMBER (1)","CONNECTION TERM POSITION (1)","CONNECTION EQUIPMENT NUMBER (2)",
+            // "CONNECTION TERM POSITION (2)", "TO_EQUIP_NO", "TO_TERM_POSITION"];
+            this.displayedColumns = columns;
