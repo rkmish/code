@@ -1,0 +1,375 @@
+  public async Task<int> UpdateFeatureData(List<TmpSoftwareProjectMapDetails> FeatureUpdateList)
+        {
+            List<TmpSoftwareProjectMapDetails> SoftwareList = new List<TmpSoftwareProjectMapDetails>();
+            DateTime saveUtcNow = DateTime.UtcNow;
+            var query = "";
+            if (FeatureUpdateList.Count > 0)
+            {
+                foreach (var item in FeatureUpdateList)
+                {
+                    using (var con = DbConnectionFactory.CreateDbConnection())
+                    {
+                        await con.OpenAsync();
+                        using (var tran = con.BeginTransaction())
+                        {
+                            try
+                            {
+                                if (item.ProjectId == 0 || item.ProjectId == null)
+                                {
+                                    item.ProjectId = null;
+                                    query = @"UPDATE USER_FIND_OWN.AB_MNEMONICS SET PRODUCTION_TITLE = :PIPRODUCTIONTITLE ,
+                                          PROJECT_ID = :PIPROJECTID,ADDITIONAL_CONTINGENCIES=:PICONTINGENTFEATURE
+                                          WHERE MNEMONICS_ID = :PIMNEMONICSID";
+                                }
+                                else
+                                {
+                                    query = @"UPDATE USER_FIND_OWN.AB_MNEMONICS SET PRODUCTION_TITLE = :PIPRODUCTIONTITLE ,
+                                          PROJECT_ID = :PIPROJECTID,MODIFIED_DATE = :PIMODIFIEDDATE,ADDITIONAL_CONTINGENCIES=:PICONTINGENTFEATURE
+                                          WHERE MNEMONICS_ID = :PIMNEMONICSID";
+                                }
+
+                                var sqlParams = new DynamicParameters();
+                                sqlParams.Add("PICONTINGENTFEATURE", value: item.ContingentFeature, dbType: DbType.String);
+                                sqlParams.Add("PIPRODUCTIONTITLE", value: item.ProductionTitle, dbType: DbType.String);
+                                sqlParams.Add("PIMNEMONICSID", value: item.MnemonicsId, dbType: DbType.Int32);
+                                sqlParams.Add("PIPROJECTID", value: item.ProjectId, dbType: DbType.Int32);
+                                sqlParams.Add("PIMODIFIEDDATE", value: saveUtcNow, dbType: DbType.DateTime);
+                                var spResult = await con.ExecuteAsync(query, sqlParams, commandType: CommandType.Text);
+                                tran.Commit();
+
+                            }
+                            catch (Exception ex)
+                            {
+                                tran.Rollback();
+                                if (con.State != ConnectionState.Closed)
+                                {
+                                    con.Close();
+                                }
+                                throw ex;
+                            }
+                        }
+                    }
+                }
+            }
+            return 1;
+
+        }
+        
+        List<DataRow> deletedRows = new List<DataRow>();
+                    resultlist = spResult.ToList();
+                    if (resultlist.Count() > 0)
+                    {
+
+                        //Creating Data Table. 
+                        //dt.Columns.Add("WIRE DIAGRAM", typeof(string));
+                        dt.Columns.Add("BUNDLE NO", typeof(string));
+                        dt.Columns.Add("EFFECTIVITY", typeof(string));
+                        dt.Columns.Add("FROM EQUIP NO", typeof(string));
+                        dt.Columns.Add("FROM TERM POSITION", typeof(string));
+                        dt.Columns.Add("TO EQUIP NO", typeof(string));
+                        dt.Columns.Add("TO TERM POSITION", typeof(string));
+                        dt.Columns.Add("LEVEL", typeof(Int32));
+                        dt.Columns.Add("SELECTED EFFECTIVITY", typeof(string));
+                        dt.Columns.Add("FROM PIN", typeof(string));
+
+                        //Inserting Data into Data Table.
+                        for (var i = 0; i < spResult.Count(); i++)
+                        {
+                            DataRow row1 = dt.NewRow();
+                            //row1["WIRE DIAGRAM"] = (resultlist[i].WIRE_DIAGRAM).ToString();
+                            row1["BUNDLE NO"] = (resultlist[i].BUNDLE_NO).ToString();
+                            row1["EFFECTIVITY"] = (resultlist[i].EFFECTIVITY).ToString();
+                            row1["FROM EQUIP NO"] = (resultlist[i].FROM_EQUIP_NO).ToString();
+                            row1["FROM TERM POSITION"] = (resultlist[i].FROM_TERM_POSITION).ToString();
+                            row1["TO EQUIP NO"] = (resultlist[i].TO_EQUIP_NO).ToString();
+                            row1["TO TERM POSITION"] = (resultlist[i].TO_TERM_POSITION).ToString();
+                            row1["LEVEL"] = resultlist[i].LEVEL;
+                            row1["SELECTED EFFECTIVITY"] = resultlist[i].SELECTED_EFFECTIVITY;
+                            row1["FROM PIN"] = (resultlist[i].FROM_PIN).ToString();
+                            dt.Rows.Add(row1);
+                        }
+
+                        //To add EFFECTIVITY comma seperated , when all the records are same expect the "EFFECTIVITY" and "SELECTED EFFECTIVITY"
+                        for (int i = 0; i < dt.Rows.Count; i++)
+                        {
+                            var tempRow = dt.Rows[i];
+                            for (int j = 0; j < dt.Rows.Count; j++)
+                            {
+                                DataRow rows = dt.Rows[j];
+                                if (tempRow["BUNDLE NO"].ToString() == rows["BUNDLE NO"].ToString() //tempRow["WIRE DIAGRAM"].ToString() == rows["WIRE DIAGRAM"].ToString() && 
+                                    && tempRow["EFFECTIVITY"].ToString() != rows["EFFECTIVITY"].ToString() && tempRow["FROM EQUIP NO"].ToString() == rows["FROM EQUIP NO"].ToString()
+                                    && tempRow["FROM TERM POSITION"].ToString() == rows["FROM TERM POSITION"].ToString() && tempRow["TO EQUIP NO"].ToString() == rows["TO EQUIP NO"].ToString()
+                                    && tempRow["TO TERM POSITION"].ToString() == rows["TO TERM POSITION"].ToString() && Convert.ToInt32(tempRow["LEVEL"]) == Convert.ToInt32(rows["LEVEL"])
+                                    /*&& tempRow["SELECTED EFFECTIVITY"].ToString() == rows["SELECTED EFFECTIVITY"].ToString()*/
+                                    && tempRow["FROM PIN"].ToString() == rows["FROM PIN"].ToString())
+                                {
+                                    tempRow["EFFECTIVITY"] = tempRow["EFFECTIVITY"].ToString() + "," + rows["EFFECTIVITY"].ToString();
+                                    dt.Rows.Remove(rows);
+                                    j = j - 1;
+                                }
+
+                            }
+                        }
+
+                        dt.Columns["TO EQUIP NO"].ColumnName = "CONNECTION EQUIPMENT NUMBER (1)";
+                        dt.Columns["TO TERM POSITION"].ColumnName = "CONNECTION TERM POSITION (1)";
+                        var range = dt.Rows.Count;
+                        for (int i = 0; i < range; i++)
+                        {
+                            var row1 = dt.Rows[i];
+                            var Count = 0;
+                            
+                            for (int p = 0; p < range ; p++)
+                            {
+                                var searchChildrow = dt.Rows[p];
+                                if (row1["CONNECTION EQUIPMENT NUMBER (1)"].ToString().Substring(0, (row1["CONNECTION EQUIPMENT NUMBER (1)"].ToString().Length - 1)) == searchChildrow["FROM EQUIP NO"].ToString().Substring(0, (searchChildrow["FROM EQUIP NO"].ToString().Length - 1))
+                                && row1["CONNECTION TERM POSITION (1)"].ToString() == searchChildrow["FROM TERM POSITION"].ToString() &&
+                                /*row1["SELECTED EFFECTIVITY"].ToString() == searchChildrow["SELECTED EFFECTIVITY"].ToString() && */
+                                row1["FROM PIN"].ToString() == searchChildrow["FROM PIN"].ToString() && Convert.ToInt32(searchChildrow["LEVEL"]) == 2)
+                                {
+                                    Count++;
+                                    if (Count > 1)
+                                    {
+                                        DataRow row = dt.NewRow();
+                                        //Map all the values in the columns
+                                        row["BUNDLE NO"] = row1["BUNDLE NO"];
+                                        row["EFFECTIVITY"] = row1["EFFECTIVITY"];
+                                        row["FROM EQUIP NO"] = row1["FROM EQUIP NO"];
+                                        row["FROM TERM POSITION"] = row1["FROM TERM POSITION"];
+                                        row["CONNECTION EQUIPMENT NUMBER (1)"] = row1["CONNECTION EQUIPMENT NUMBER (1)"];
+                                        row["CONNECTION TERM POSITION (1)"] = row1["CONNECTION TERM POSITION (1)"];
+                                        row["LEVEL"] = row1["LEVEL"];
+                                        row["SELECTED EFFECTIVITY"] = row1["SELECTED EFFECTIVITY"];
+                                        row["FROM PIN"] = row1["FROM PIN"];
+                                        //At the end just add that row in datatable
+                                        dt.Rows.Add(row);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        var query1 = from c in dt.AsEnumerable()
+                                    orderby c.Field<Int32>("LEVEL")
+                                    select c;
+                        DataView dv = query1.AsDataView();                        
+
+                        dt = dv.ToTable();
+                        //foreach (DataRow row1 in dt.Rows)
+                        //{
+                        for (int i = 0; i < dt.Rows.Count; i++)
+                        {
+                            var row1 = dt.Rows[i];
+                            string maxLevel = dt.AsEnumerable()
+                            .Where(row => row["FROM PIN"].ToString() == row1["FROM PIN"].ToString()/* && row["SELECTED EFFECTIVITY"].ToString() == row1["SELECTED EFFECTIVITY"].ToString()*/)
+                            .Max(row => row["LEVEL"])
+                            .ToString();
+                            int counter = 2;
+                            if (row1["LEVEL"].ToString() == "1")
+                            {
+                                //foreach (DataRow row2 in dt.Rows)
+                                //{
+                                for (int j = 0; j < dt.Rows.Count; j++)
+                                {
+                                    var row2 = dt.Rows[j];
+                                    DataColumnCollection columns = dt.Columns;
+                                    //row1["FROM_PIN"].ToString() == row2["FROM_PIN"].ToString() && row1["SELECTED_EFFECTIVITY"].ToString() == row2["SELECTED_EFFECTIVITY"].ToString()
+                                    string toEquipNo = row1["CONNECTION EQUIPMENT NUMBER (" + (counter - 1) + ")"].ToString().Substring(0, (row1["CONNECTION EQUIPMENT NUMBER (" + (counter - 1) + ")"].ToString().Length - 1));
+                                    string frmEquipNo = row2["FROM EQUIP NO"].ToString().Substring(0, (row2["FROM EQUIP NO"].ToString().Length - 1));
+                                    if (frmEquipNo == toEquipNo && row1["CONNECTION TERM POSITION (" + (counter - 1) + ")"].ToString() == row2["FROM TERM POSITION"].ToString()
+                                        && row1["FROM PIN"].ToString() == row2["FROM PIN"].ToString()
+                                        /*&& row1["SELECTED EFFECTIVITY"].ToString() == row2["SELECTED EFFECTIVITY"].ToString()*/ && Convert.ToInt32(row2["LEVEL"]) != 1)
+                                    {
+                                        row1["BUNDLE NO"] = row1["BUNDLE NO"].ToString() + "," + row2["BUNDLE NO"].ToString();
+                                        row1["EFFECTIVITY"] = row1["EFFECTIVITY"].ToString() + "," + row2["EFFECTIVITY"].ToString();
+
+                                        if (!columns.Contains("CONNECTION EQUIPMENT NUMBER (" + counter + ")"))
+                                        {
+                                            dt.Columns.Add("CONNECTION EQUIPMENT NUMBER (" + counter + ")");
+                                            dt.Columns.Add("CONNECTION TERM POSITION (" + counter + ")");
+                                        }
+
+                                        row1["CONNECTION EQUIPMENT NUMBER (" + counter + ")"] = row2["FROM EQUIP NO"].ToString();
+                                        row1["CONNECTION TERM POSITION (" + counter + ")"] = row2["FROM TERM POSITION"].ToString();
+
+                                        counter++;
+
+                                        if (maxLevel != row2["LEVEL"].ToString())
+                                        {
+                                            if (!columns.Contains("CONNECTION EQUIPMENT NUMBER (" + counter + ")"))
+                                            {
+                                                dt.Columns.Add("CONNECTION EQUIPMENT NUMBER (" + counter + ")");
+                                                dt.Columns.Add("CONNECTION TERM POSITION (" + counter + ")");
+                                            }
+
+                                            row1["CONNECTION EQUIPMENT NUMBER (" + counter + ")"] = row2["CONNECTION EQUIPMENT NUMBER (1)"].ToString();
+                                            row1["CONNECTION TERM POSITION (" + counter + ")"] = row2["CONNECTION TERM POSITION (1)"].ToString();
+                                            
+                                            dt.Rows.Remove(row2);
+                                            j = j - 1;
+                                            counter++;
+                                        }
+                                        else
+                                        {
+                                            if (!columns.Contains("TO EQUIP NO"))
+                                            {
+                                                dt.Columns.Add("TO EQUIP NO");
+                                                dt.Columns.Add("TO TERM POSITION");
+                                            }
+
+                                            if (ModuleTo == row2["CONNECTION EQUIPMENT NUMBER (1)"].ToString() || ModuleTo == null || ModuleTo == "" || ModuleFrom == row2["CONNECTION EQUIPMENT NUMBER (1)"].ToString())
+                                            {
+                                                row1["TO EQUIP NO"] = row2["CONNECTION EQUIPMENT NUMBER (1)"].ToString();
+                                                row1["TO TERM POSITION"] = row2["CONNECTION TERM POSITION (1)"].ToString();
+
+                                            }
+                                            else
+                                            {
+                                                dt.Rows.Remove(row1);
+                                                i = i - 1;
+                                            }
+                                            dt.Rows.Remove(row2);
+                                            break;
+                                        }
+                                    }
+                                    else
+                                    {
+
+                                        //if (row1["FROM_PIN"].ToString() == row2["FROM_PIN"].ToString() && row1["SELECTED_EFFECTIVITY"].ToString() == row2["SELECTED_EFFECTIVITY"].ToString() && Convert.ToInt32(maxLevel) < 2)
+                                        //{
+                                        //    if (row1["EFFECTIVITY"].ToString() == row2["EFFECTIVITY"].ToString() && row1["CONNECTION EQUIPMENT NUMBER (1)"].ToString() == row2["CONNECTION EQUIPMENT NUMBER (1)"].ToString())
+                                        //    {
+                                        if (row1["BUNDLE NO"].ToString() == row2["BUNDLE NO"].ToString()
+                                    && row1["EFFECTIVITY"].ToString() == row2["EFFECTIVITY"].ToString() && row1["FROM EQUIP NO"].ToString() == row2["FROM EQUIP NO"].ToString()
+                                    && row1["FROM TERM POSITION"].ToString() == row2["FROM TERM POSITION"].ToString() && row1["CONNECTION EQUIPMENT NUMBER (1)"].ToString() == row2["CONNECTION EQUIPMENT NUMBER (1)"].ToString()
+                                    && row1["CONNECTION TERM POSITION (1)"].ToString() == row2["CONNECTION TERM POSITION (1)"].ToString() && Convert.ToInt32(row1["LEVEL"]) == Convert.ToInt32(row2["LEVEL"])
+                                   /* && row1["SELECTED EFFECTIVITY"].ToString() == row2["SELECTED EFFECTIVITY"].ToString()*/ && row1["FROM PIN"].ToString() == row2["FROM PIN"].ToString())
+                                        {
+
+                                            //To check whether selected row has child or not ,if child present it will perform above if condition logic else below logic.
+                                            foreach (DataRow searchChildrow in dt.Rows)
+                                            {
+                                                if (row1["CONNECTION EQUIPMENT NUMBER (1)"].ToString().Substring(0, (row1["CONNECTION EQUIPMENT NUMBER (1)"].ToString().Length - 1)) == searchChildrow["FROM EQUIP NO"].ToString().Substring(0, (searchChildrow["FROM EQUIP NO"].ToString().Length - 1))
+                                                    && row1["CONNECTION TERM POSITION (1)"].ToString() == searchChildrow["FROM TERM POSITION"].ToString() &&
+                                                    /*row1["SELECTED EFFECTIVITY"].ToString() == searchChildrow["SELECTED EFFECTIVITY"].ToString() && */row1["FROM PIN"].ToString() == searchChildrow["FROM PIN"].ToString() && searchChildrow["LEVEL"].ToString() == "2")
+                                                {
+                                                    isChildPresent = true;
+                                                    break;
+                                                }
+
+                                            }
+                                            if (!isChildPresent)
+                                            {
+                                                if (!columns.Contains("TO EQUIP NO"))
+                                                {
+                                                    dt.Columns.Add("TO EQUIP NO");
+                                                    dt.Columns.Add("TO TERM POSITION");
+                                                }
+
+                                                if (ModuleTo == row1["CONNECTION EQUIPMENT NUMBER (1)"].ToString() || ModuleTo == null || ModuleTo == "" || ModuleFrom == row1["CONNECTION EQUIPMENT NUMBER (1)"].ToString())
+                                                {
+                                                    row1["TO EQUIP NO"] = row1["CONNECTION EQUIPMENT NUMBER (1)"].ToString();
+                                                    row1["TO TERM POSITION"] = row1["CONNECTION TERM POSITION (1)"].ToString();
+
+                                                }
+                                                else
+                                                {
+                                                    dt.Rows.Remove(row1);
+                                                    i = i - 1;
+                                                }
+
+
+                                                row1["CONNECTION EQUIPMENT NUMBER (1)"] = string.Empty;
+                                                row1["CONNECTION TERM POSITION (1)"] = string.Empty;
+
+                                                break;
+                                            }
+                                            isChildPresent = false;
+                                        }
+                                    }
+
+                                }
+                            }
+                        }
+
+                        //Check if below column is null then it will delete that row.
+                        for (int i=0;i<dt.Columns.Count;i++)
+                        {
+                           if( dt.Columns[i].ToString().Contains("CONNECTION EQUIPMENT"))
+                            {
+                                foreach (DataRow row1 in dt.Rows)
+                                {
+                                    if (row1[dt.Columns[i].ToString()].ToString() != "")
+                                    {
+                                        isDelete = true;
+                                        break;
+                                    }
+                                }
+                                if (!isDelete)
+                                {
+                                    dt.Columns.Remove(dt.Columns[i].ToString());
+                                    dt.Columns.Remove(dt.Columns[i].ToString());
+                                }
+                            }
+                        }
+                        
+                        //foreach (DataRow row1 in dt.Rows)
+                        //{
+                        //    if (row1["CONNECTION EQUIPMENT NUMBER (2)"].ToString() != "")
+                        //    {
+                        //        isDelete = true;
+                        //        break;
+                        //    }
+                        //}
+                        //if (!isDelete)
+                        //{
+                        //    dt.Columns.Remove("CONNECTION EQUIPMENT NUMBER (2)");
+                        //    dt.Columns.Remove("CONNECTION TERM POSITION (2)");
+                        //}
+                        dt.Columns.Remove("LEVEL");
+                        dt.Columns.Remove("FROM PIN");
+                        dt.Columns.Remove("SELECTED EFFECTIVITY");
+                        dt.Columns["TO EQUIP NO"].SetOrdinal(dt.Columns.Count - 1);
+                        dt.Columns["TO TERM POSITION"].SetOrdinal(dt.Columns.Count - 1);
+                        //dt.Columns["SELECTED EFFECTIVITY"].SetOrdinal(dt.Columns.Count - 1);
+
+                        //If ModuleTo is equal to ModuleFrom and ModuleFrom equal ModuleTo then reversing of that row is performed here!
+                        if (ModuleTo != null && ModuleTo != "" && ModuleFrom != null && ModuleFrom != "")
+                        {
+                            foreach (DataRow row in dt.Rows)
+                            {
+                                if (row["FROM EQUIP NO"].ToString() == ModuleTo && row["TO EQUIP NO"].ToString() == ModuleFrom)
+                                {
+                                    int columncount = dt.Columns.Count;
+                                    for (int i = 0; i < (columncount - 2) / 2; i++)
+                                    {
+                                        string TempEquipNo = row[2 + i].ToString();
+                                        string TempEquipTerm = row[3 + i].ToString();
+                                        row[2 + i] = row[columncount - 2 - i].ToString();
+                                        row[3 + i] = row[columncount - 1 - i].ToString();
+                                        row[columncount - 2 - i] = TempEquipNo;
+                                        row[columncount - 1 - i] = TempEquipTerm;
+                                        i = i + 1;
+                                    }
+                                }
+
+                            }
+                            
+                            for (int j = 0; j < dt.Rows.Count; j++)
+                            {
+                                DataRow row = dt.Rows[j];
+                                if (row["FROM EQUIP NO"].ToString() != ModuleFrom || row["TO EQUIP NO"].ToString() != ModuleTo)
+                                {
+                                    dt.Rows.Remove(row);
+                                    j = j - 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                }
+            }
+            ds.Tables.Add(dt);
+            return ds;
+        }
