@@ -1,0 +1,76 @@
+private readonly INoiseBatchRepository _iNoiseBatchRepository;
+
+        public NoiseBatchDomain(INoiseBatchRepository iNoiseBatchRepository)
+        {
+            this._iNoiseBatchRepository = iNoiseBatchRepository;
+        }
+
+        public async Task<string> Extract()
+        {
+            string path = @"D:\New folder\pdf_noise\4-24G-48B1S-011107-A1.pdf";//4-24G-48B1S-011107-A1
+            if (File.Exists(path))
+            {
+                noisedata.FileName = Path.GetFileName(path);
+                string RawPdfText = RetrieveRawPdfText(path);
+                NoiseRowData noiseRowData = RetrieveNoiseRawRowData(RawPdfText);
+                string pdfdata = noiseRowData.Engine + "_" + noiseRowData.Thrust + "_" + noiseRowData.Model + "_" + noiseRowData.AirplaneModification;
+                return pdfdata;
+            }
+            else
+            {
+                return "File Not Found";
+            }
+        }
+
+        private string RetrieveRawPdfText(string path)
+        {
+            //var pdfDocument = new Document(path);
+            Document doc = new Document(path);
+            SetAsposeLicenseForPDF();
+            TextAbsorber textAbsorber = new TextAbsorber(new TextExtractionOptions(TextExtractionOptions.TextFormattingMode.Raw));
+            //TextFragmentAbsorber absorber = new TextFragmentAbsorber("700");
+            doc.Pages.Accept(textAbsorber);
+            //doc.Pages.Accept(absorber);
+            string extractedText = textAbsorber.Text;
+            return extractedText;
+        }
+
+        private NoiseRowData RetrieveNoiseRawRowData(string RawPdfText)
+        {
+            int newLineCount = Regex.Matches(RawPdfText, "\r\n").Count;
+            string[] NewLineSplit = RawPdfText.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+            //string strEng = "Engine:";
+            //string strMod = "Model:";
+            for (int i = 0; i < NewLineSplit.Count(); i++)
+            {
+                if (!string.IsNullOrEmpty(RawPdfText))
+                {
+                    string txtRow = NewLineSplit[i].ToString();
+                    if (txtRow.StartsWith("Engines:"))
+                    {
+
+                        string[] SplitEngRowText = txtRow.Split(new string[] { "@ " }, StringSplitOptions.None);
+                        string EngineExt = SplitEngRowText[0].Replace("Engines:", "").TrimStart(); //SplitEngRowText[0].Split(new[] { "Series" }, StringSplitOptions.None);//SplitEngRowText[0].Split(':');
+                        //string[] fnlEnfineExt = EnfineExt[0].Split(':');
+                        noisedata.Engine = EngineExt;
+
+                        string ThrustExt = SplitEngRowText[1].Substring(0, SplitEngRowText[1].IndexOf("Thrust"));
+                        noisedata.Thrust = ThrustExt;
+
+                    }
+
+                    if (txtRow.StartsWith("Model:"))
+                    {
+                        string[] SplitModelRowText = txtRow.Split(',');
+                        string ModelExt = SplitModelRowText[0].Replace("Model:", "").TrimStart();
+                        noisedata.Model = ModelExt;
+
+
+                        string AirplaneMod = string.Join(" ", SplitModelRowText.Skip(1)).TrimStart();
+                        noisedata.AirplaneModification = AirplaneMod;
+                    }
+                }
+            }
+            return noisedata;
+        }
