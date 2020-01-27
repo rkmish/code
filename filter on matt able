@@ -1,0 +1,114 @@
+  applyCommonFilter(filterValue: string) {
+        this.CommonFilterText = filterValue;
+        filterValue = filterValue.trim();
+        filterValue = filterValue.toLowerCase();
+        this.gridDataSource.filter = filterValue;
+        //this.ScenarioListDS.filter = filterValue;
+        if (filterValue != undefined && filterValue != "" && filterValue != null) {
+            this.gridDataSource.filterPredicate = (data: TmpSoftwareProjectMapDetails, filter: string): boolean => { return true };
+            this.gridDataSource.filterPredicate = this.createFilter();
+        }
+        //this.gridDataSource.filteredData.length === 0 ? this.noDataFound = true : this.noDataFound = false;
+        if (this.gridDataSource.filteredData.length === 0) {
+            this.noDataFound = true;
+            this.showGridCol = false;
+        }
+        else {
+            this.noDataFound = false;
+            this.showGridCol = false;;
+        }
+    }
+
+    createFilter() {
+
+        var result;
+        var func = (data: TmpSoftwareProjectMapDetails, filter: string): boolean => {
+            if (data.SoftwareSettingOptions != null) {
+                if (data.ContingentFeature != null) {
+                    if (data.ProductionTitle != null) {
+                        if (data.ProjectId != null) {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProductionTitle.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.ProjectId.toString().indexOf(this.CommonFilterText) != -1 || data.ContingentFeature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1
+                                || data.SoftwareSettingOptions.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        } else {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProductionTitle.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.ContingentFeature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.SoftwareSettingOptions.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        }
+                    }
+                    else {
+                        if (data.ProjectId != null) {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProjectId.toString().indexOf(this.CommonFilterText) != -1 || data.ContingentFeature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.SoftwareSettingOptions.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        } else {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.ContingentFeature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.SoftwareSettingOptions.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        }
+                    }
+                }
+
+                else {
+                    if (data.ProductionTitle != null) {
+                        if (data.ProjectId != null) {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProductionTitle.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.ProjectId.toString().indexOf(this.CommonFilterText) != -1 || data.SoftwareSettingOptions.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        } else {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProductionTitle.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.SoftwareSettingOptions.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        }
+                    }
+                    else {
+                        if (data.ProjectId != null) {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProjectId.toString().indexOf(this.CommonFilterText) != -1 || data.SoftwareSettingOptions.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        } else {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.SoftwareSettingOptions.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        }
+                    }
+                }
+            }
+            else {
+                if (data.ContingentFeature != null) {
+                    if (data.ProductionTitle != null) {
+                        if (data.ProjectId != null) {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProductionTitle.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.ProjectId.toString().indexOf(this.CommonFilterText) != -1 || data.ContingentFeature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1
+                            )
+                        } else {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProductionTitle.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.ContingentFeature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        }
+                    }
+                    else {
+                        if (data.ProjectId != null) {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProjectId.toString().indexOf(this.CommonFilterText) != -1 || data.ContingentFeature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        } else {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.ContingentFeature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        }
+                    }
+                }
+
+                else {
+                    if (data.ProductionTitle != null) {
+                        if (data.ProjectId != null) {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProductionTitle.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 || data.ProjectId.toString().indexOf(this.CommonFilterText) != -1)
+                        } else {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProductionTitle.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        }
+                    }
+                    else {
+                        if (data.ProjectId != null) {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1 ||
+                                data.ProjectId.toString().indexOf(this.CommonFilterText) != -1)
+                        } else {
+                            result = (data.Feature.toLowerCase().indexOf(this.CommonFilterText.toLowerCase()) != -1)
+                        }
+                    }
+                }
+            }
+            return result
+        }
+        return func;
+    }
