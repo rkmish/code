@@ -1,0 +1,171 @@
+<form #SoftwareProjectsMappingForm="ngForm">
+  <div class="pageBody" [ngStyle]="{'min-height.px': innerHeight}">
+    <div fxLayout="row">
+      <label class="labelPadding" fxFlex="15" fxLayoutAlign="left center">Software </label>
+      <label fxFlex="2" fxLayoutAlign="center center">: </label>
+      <mat-form-field class="softwareWidth">
+        <mat-select required name="software" [(ngModel)]="selectedSoftware" (selectionChange)="OnchangeSoftware(this)">
+          <mat-option *ngFor="let software of softwareList" [value]="software.Software">
+            {{software.Software}}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+      <div fxFlex="10"></div>
+    </div>
+    <div fxLayout="row" class="buttonStyle" fxLayoutGap="10px">
+      <div fxFlex="85">
+        <button mat-button class="k-primary" type="submit" (click)="OnSave()">
+          Save
+        </button>
+        <button mat-button class="k-primary" (click)="OnReset()">
+          Reset
+        </button>
+      </div>
+      <div fxFlex="15" *ngIf="!showGridCol">
+        <mat-form-field fxFlex="60">
+          <input matInput maxLength="100" [ngModelOptions]="{standalone: true}" [(ngModel)]="CommonFilterText" (keyup)="applyCommonFilter($event.target.value)"
+            placeholder="Search">
+          <button mat-button *ngIf="CommonFilterText" matSuffix mat-icon-button aria-label="Clear" (click)="clearCommonFilter()">
+            <mat-icon>&#xe5cd;</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+    </div>
+    <div fxFlex="10"></div>
+    <br>
+    <div class="grid-container enable-scrollbar" *ngIf="!showGridCol">
+      <mat-table id="softwareProjectsMatTable" class="paddingTable" [ngStyle]="{'width.px': innerWidth}" [dataSource]="gridDataSource"
+        matSort>
+        <!-- <ng-container matColumnDef="MnemonicsId" flex>
+          <mat-header-cell class="featureStyle" *matHeaderCellDef>Mnemonics </mat-header-cell>
+          <mat-cell class="featureStyle" *matCellDef="let row"> {{row.MnemonicsId}}
+          </mat-cell>let row; let i=index;
+        </ng-container> -->
+        <!-- <ng-container matColumnDef="MnemonicName" flex>
+          <mat-header-cell class="featureStyle" *matHeaderCellDef mat-sort-header>Mnemonics </mat-header-cell>
+          <mat-cell class="featureStyle" *matCellDef="let row"> {{row.MnemonicName}}
+          </mat-cell>
+        </ng-container> -->
+        <ng-container matColumnDef="Feature">
+          <mat-header-cell id="productionHeaderAlign" *matHeaderCellDef mat-sort-header>Feature</mat-header-cell>
+          <mat-cell *matCellDef="let element;let index=index;"> {{element.Feature}}
+          </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="SoftwareSettingOptions">
+          <mat-header-cell id="productionHeaderAlign" *matHeaderCellDef mat-sort-header>
+            Value
+          </mat-header-cell>
+          <mat-cell *matCellDef="let element;" >
+            <span *ngIf="element.SoftwareSettingOptions.length<15">
+              {{element.SoftwareSettingOptions}}
+            </span>
+            <span *ngIf="element.SoftwareSettingOptions.length>14">
+              {{element.SoftwareSettingOptions | slice: 0:14}}
+            </span>
+            <mat-icon class="cursor-pointer regionMoreIcon" *ngIf="element.SoftwareSettingOptions.length>14" title=" {{element.SoftwareSettingOptions}}">&#xe5d3;</mat-icon>
+          </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="ProductionTitle">
+          <mat-header-cell id="productionHeaderAlign" *matHeaderCellDef mat-sort-header>
+            Production Title
+          </mat-header-cell>
+          <mat-cell *matCellDef="let element">
+            <ng-container *ngIf="!element.ProjectId">
+              <input [ngModelOptions]="{standalone: true}" class="add-comment" type="text" (ngModelChange)="isChanged=true;" [(ngModel)]="element.ProductionTitle"
+                [value]="element.ProductionTitle">
+            </ng-container>
+            <span *ngIf="element.ProjectId">
+              {{element.ProductionTitle}}
+            </span>
+          </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="ADDITIONAL_CONTINGENCIES">
+          <mat-header-cell id="projectIdHeaderAlign" *matHeaderCellDef mat-sort-header>Additional Contingencies</mat-header-cell>
+          <mat-cell *matCellDef="let row;">
+            <!-- <input class="add-comment" type='text' name='Contingentfeaturename' [(ngModel)]='row.ContingentFeature'> -->
+            <input [ngModelOptions]="{standalone: true}" class="add-commentforcontingent" type="text" (ngModelChange)="isChanged=true;"
+              [(ngModel)]="row.ContingentFeature" [value]="row.ContingentFeature">
+          </mat-cell>
+        </ng-container>
+        <ng-container matColumnDef="ProjectId">
+          <mat-header-cell id="projectIdHeaderAlign" *matHeaderCellDef mat-sort-header>Project Id</mat-header-cell>
+          <mat-cell *matCellDef="let row;"> {{row.ProjectId == 0 ? '' : row.ProjectId}}
+          </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="Edit">
+          <mat-header-cell *matHeaderCellDef> Edit </mat-header-cell>
+          <mat-cell *matCellDef="let row">
+            <div>
+              <button mat-icon-button (click)="Edit(row)" matTooltipPosition="above" matTooltip="Edit">
+                <mat-icon class="custom-icon" aria-label="Edit">&#xe3c9;</mat-icon>
+              </button>
+              <button mat-icon-button (click)="ClearData($event,row)" type="submit" matTooltipPosition="above" matTooltip="Clear">
+                <mat-icon class="custom-icon" aria-label="Clear">&#xe14a;</mat-icon>
+              </button>
+            </div>
+          </mat-cell>
+        </ng-container>
+        <mat-header-row *matHeaderRowDef="columnsToDisplay"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: columnsToDisplay;"></mat-row>
+      </mat-table>
+    </div>
+    <mat-paginator #paginator [pageSize]="20" *ngIf="!noDataFound" class="paginatorStyle" [pageSizeOptions]="[5, 10, 20]" [showFirstLastButtons]="true">
+    </mat-paginator>
+    <div fxLayout="row">
+      <div fxFlex="13" class="labelPaddingNoRecords" *ngIf="noDataFound">No data found</div>
+    </div>
+  </div>
+</form>
+
+<br />
+<mat-toolbar id="footer1" class="footerMatToolBarFix">
+  <mat-toolbar-row class="ftCopyright footerMatToolBarFix" fxLayout="row" fxLayoutAlign="center">
+    <div>
+      <ul style="list-style-type:none">
+        <li>
+          Copyright © {{currentDate| date:'yyyy'}} Boeing
+        </li>
+        <li>
+          <a class="cursor-pointer" (click)="openAboutUs()">About Us</a>
+        </li>
+        <li>
+          <a class="cursor-pointer" (click)="openContactUs()">Contact Us</a>
+        </li>
+        <li>
+          <a class="cursor-pointer" (click)="openFeedback()">Feedback</a>
+        </li>
+        <li>
+          <a class="cursor-pointer" (click)="openHelp()">Help</a>
+        </li>
+        <li>
+          <a class="cursor-pointer" (click)="openTermsOfUse()">Terms of Use</a>
+        </li>
+      </ul>
+    </div>
+  </mat-toolbar-row>
+</mat-toolbar>
+
+ Edit(row: TmpSoftwareProjectMapDetails) {
+        this.dialog.open(SoftwareProjectMappingPopupComponent, {
+            width: '750px',
+            height: '530px',
+            disableClose: true,
+            data: {
+                Title: 'Scenario Selection', //title,//'Alternate Project Selection',
+                ProjectId: row.ProjectId,
+                ScenarioName: row.ProductionTitle,
+                // IsReadOnly: (this.mode.toLocaleLowerCase().indexOf('view') > -1) ? true : false,
+                MajorModel: this.majorModel,
+                //Code: code,
+                // Mode: this.mode,
+                // ParentScenarioId: this.scenarioId
+            }
+        }).afterClosed().subscribe(result => {
+            row.ProductionTitle = result.ScenarioName;
+            row.ProjectId = result.AlternateProjectNO;
+            this.isDataEditSelected = result.isDataOnEdit;
+        });
+
+    }
+
