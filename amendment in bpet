@@ -1,4 +1,4 @@
-USE [BPETTrackerPROD_Test]
+USE [BPETTrackerPROD_Test] test
 GO
 /****** Object:  StoredProcedure [dbo].[Proc_GetAmendmentDetails]    Script Date: 9/13/2018 11:18:25 AM ******/
 SET ANSI_NULLS ON
